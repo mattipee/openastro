@@ -1187,12 +1187,14 @@ oaV4L2InitCamera ( oaCameraDevice* device )
       switch ( formatDesc.pixelformat ) {
 
         case V4L2_PIX_FMT_RGB24:
-          cameraInfo->videoCurrent = V4L2_PIX_FMT_RGB24;
-          cameraInfo->videoRGB24 = 1;
-          camera->features.demosaicMode = 1;
-          preferredFound = 1;
-          if (!( formatDesc.flags & V4L2_FMT_FLAG_EMULATED )) {
-            haveNonEmulatedColour = 1;
+          if (!preferredFound){
+            cameraInfo->videoCurrent = V4L2_PIX_FMT_RGB24;
+            cameraInfo->videoRGB24 = 1;
+            camera->features.demosaicMode = 1;
+            preferredFound = 1;
+            if (!( formatDesc.flags & V4L2_FMT_FLAG_EMULATED )) {
+              haveNonEmulatedColour = 1;
+            }
           }
           break;
 
@@ -1200,14 +1202,12 @@ oaV4L2InitCamera ( oaCameraDevice* device )
         case V4L2_PIX_FMT_SRGGB8:
         case V4L2_PIX_FMT_SGBRG8:
         case V4L2_PIX_FMT_SGRBG8:
-          if ( !preferredFound ) {
-            cameraInfo->videoCurrent = formatDesc.pixelformat;
-            cameraInfo->mosaicFormat = formatDesc.pixelformat;
-            camera->features.rawMode = 1;
-            preferredFound = 1;
-            if (!( formatDesc.flags & V4L2_FMT_FLAG_EMULATED )) {
-              haveNonEmulatedColour = 1;
-            }
+          cameraInfo->videoCurrent = formatDesc.pixelformat;
+          cameraInfo->mosaicFormat = formatDesc.pixelformat;
+          camera->features.rawMode = 1;
+          preferredFound = 1;
+          if (!( formatDesc.flags & V4L2_FMT_FLAG_EMULATED )) {
+            haveNonEmulatedColour = 1;
           }
           break;
 
