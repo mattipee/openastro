@@ -345,19 +345,6 @@ ControlWidget::configure ( void )
   }
 
   // Step 2.  Find out if we can re-use the existing controls
-
-  // Need to know what the preferred exposure control is going to be
-  // here.
-
-  state.preferredExposureControl = 0;
-  if ( state.camera->hasControl ( OA_CAM_CTRL_EXPOSURE_ABSOLUTE )) {
-    state.preferredExposureControl = OA_CAM_CTRL_EXPOSURE_ABSOLUTE;
-  } else {
-    if ( state.camera->hasControl ( OA_CAM_CTRL_EXPOSURE_UNSCALED )) {
-      state.preferredExposureControl = OA_CAM_CTRL_EXPOSURE_UNSCALED;
-    }
-  }
-
   int replaceSelectable1 = 0;
   int type;
   if ( config.selectableControl[0] == -1 ) {
@@ -369,11 +356,6 @@ ControlWidget::configure ( void )
     type = state.camera->hasControl ( config.selectableControl[0]);
   }
   if ( type != OA_CTRL_TYPE_INT32 && type != OA_CTRL_TYPE_INT64 ) {
-    // we can't allow this one
-    replaceSelectable1 = -1;
-  }
-  if ( state.preferredExposureControl &&
-      config.selectableControl[0] == state.preferredExposureControl ) {
     // we can't allow this one
     replaceSelectable1 = -1;
   }
@@ -392,13 +374,20 @@ ControlWidget::configure ( void )
     // we can't allow this one
     replaceSelectable2 = -1;
   }
-  if ( state.preferredExposureControl &&
-      config.selectableControl[1] == state.preferredExposureControl ) {
-    // we can't allow this one
-    replaceSelectable2 = -1;
-  }
 
   // Step 3.  Rebuild the menus whilst assigning new controls if required
+
+  // Need to know what the preferred exposure control is going to be
+  // here.
+
+  state.preferredExposureControl = 0;
+  if ( state.camera->hasControl ( OA_CAM_CTRL_EXPOSURE_ABSOLUTE )) {
+    state.preferredExposureControl = OA_CAM_CTRL_EXPOSURE_ABSOLUTE;
+  } else {
+    if ( state.camera->hasControl ( OA_CAM_CTRL_EXPOSURE_UNSCALED )) {
+      state.preferredExposureControl = OA_CAM_CTRL_EXPOSURE_UNSCALED;
+    }
+  }
 
   int c1, c2;
   c1 = c2 = 0;
