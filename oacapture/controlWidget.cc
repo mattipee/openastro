@@ -400,18 +400,6 @@ ControlWidget::configure ( void )
 
   // Step 3.  Rebuild the menus whilst assigning new controls if required
 
-  // Need to know what the preferred exposure control is going to be
-  // here.
-
-  state.preferredExposureControl = 0;
-  if ( state.camera->hasControl ( OA_CAM_CTRL_EXPOSURE_ABSOLUTE )) {
-    state.preferredExposureControl = OA_CAM_CTRL_EXPOSURE_ABSOLUTE;
-  } else {
-    if ( state.camera->hasControl ( OA_CAM_CTRL_EXPOSURE_UNSCALED )) {
-      state.preferredExposureControl = OA_CAM_CTRL_EXPOSURE_UNSCALED;
-    }
-  }
-
   int c1, c2;
   c1 = c2 = 0;
   for ( int c = 1; c < OA_CAM_CTRL_LAST_P1; c++ ) {
