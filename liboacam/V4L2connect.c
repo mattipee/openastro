@@ -1187,7 +1187,7 @@ oaV4L2InitCamera ( oaCameraDevice* device )
       switch ( formatDesc.pixelformat ) {
 
         case V4L2_PIX_FMT_RGB24:
-          if (!preferredFound){
+          if (!preferredFound || camera->features.rawMode != 1){
             cameraInfo->videoCurrent = V4L2_PIX_FMT_RGB24;
             cameraInfo->videoRGB24 = 1;
             camera->features.demosaicMode = 1;
