@@ -373,11 +373,6 @@ ControlWidget::configure ( void )
     // we can't allow this one
     replaceSelectable1 = -1;
   }
-  if ( state.preferredExposureControl &&
-      config.selectableControl[0] != state.preferredExposureControl ) {
-    // we can't allow this one
-    replaceSelectable1 = -1;
-  }
 
   int replaceSelectable2 = 0;
   if ( config.selectableControl[1] == -1 ||
@@ -391,11 +386,6 @@ ControlWidget::configure ( void )
     type = state.camera->hasControl ( config.selectableControl[1]);
   }
   if ( type != OA_CTRL_TYPE_INT32 && type != OA_CTRL_TYPE_INT64 ) {
-    // we can't allow this one
-    replaceSelectable2 = -1;
-  }
-  if ( state.preferredExposureControl &&
-      config.selectableControl[1] != state.preferredExposureControl ) {
     // we can't allow this one
     replaceSelectable2 = -1;
   }
