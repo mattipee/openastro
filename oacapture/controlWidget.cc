@@ -365,7 +365,8 @@ ControlWidget::configure ( void )
     replaceSelectable1 = -1;
   }
   type = 0;
-  if ( config.selectableControl[0] >= 0 ) {
+  if ( config.selectableControl[0] >= 0 && config.selectableControl[0] !=
+      state.preferredExposureControl ) {
     type = state.camera->hasControl ( config.selectableControl[0]);
   }
   if ( type != OA_CTRL_TYPE_INT32 && type != OA_CTRL_TYPE_INT64 ) {
@@ -385,7 +386,8 @@ ControlWidget::configure ( void )
     replaceSelectable2 = -1;
   }
   type = 0;
-  if ( config.selectableControl[1] >= 0 ) {
+  if ( config.selectableControl[1] >= 0 && config.selectableControl[1] !=
+      state.preferredExposureControl ) {
     type = state.camera->hasControl ( config.selectableControl[1]);
   }
   if ( type != OA_CTRL_TYPE_INT32 && type != OA_CTRL_TYPE_INT64 ) {
@@ -1265,11 +1267,23 @@ ControlWidget::updateFromConfig ( void )
     if ( foundDropdownValue == -1 ) {
       qWarning() << "can't find new exposure setting in dropdown";
     } else {
+      disconnect ( expMenu, SIGNAL( currentIndexChanged ( int )), this,
+          SLOT( exposureMenuChanged ( int )));
+      disconnect ( exposureSlider, SIGNAL( sliderMoved ( int )),
+          exposureSpinbox, SLOT( setValue( int )));
+      disconnect ( exposureSlider, SIGNAL( valueChanged ( int )),
+          exposureSpinbox, SLOT( setValue( int )));
       expMenu->setCurrentIndex ( foundDropdownValue );
       exposureSlider->setRange ( minSettings[ foundDropdownValue ],
           maxSettings[ foundDropdownValue ] );
       exposureSpinbox->setRange ( minSettings[ foundDropdownValue ],
           maxSettings[ foundDropdownValue ] );
+      connect ( expMenu, SIGNAL( currentIndexChanged ( int )), this,
+          SLOT( exposureMenuChanged ( int )));
+      connect ( exposureSlider, SIGNAL( sliderMoved ( int )), exposureSpinbox,
+          SLOT( setValue( int )));
+      connect ( exposureSlider, SIGNAL( valueChanged ( int )), exposureSpinbox,
+          SLOT( setValue( int )));
     }
   }
   exposureSpinbox->setValue ( exposureSetting );
