@@ -135,6 +135,8 @@ class PreviewWidget : public QFrame
     void		processFlip16Bit ( uint8_t*, int );
     void		processFlip24BitColour ( uint8_t*, int );
     void		convert16To8Bit ( void*, int, int );
+    void		convert10To8Bit ( void*, int, int );
+    int 		convert10To16Bit ( void*, int, int );
     void		mousePressEvent ( QMouseEvent* );
     void		mouseMoveEvent ( QMouseEvent* );
     void		mouseReleaseEvent ( QMouseEvent* );

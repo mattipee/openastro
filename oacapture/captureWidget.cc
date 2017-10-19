@@ -1445,7 +1445,7 @@ CaptureWidget::writeSettings ( OutputHandler* out )
                   case OA_CAM_CTRL_BIT_DEPTH:
                   {
                     int fmt = state.camera->videoFramePixelFormat();
-                    int Bpp = OA_BYTES_PER_PIXEL( fmt );
+                    double Bpp = OA_BYTES_PER_PIXEL( fmt );
                     int bpp = Bpp * 8;
                     settings << bpp << std::endl;
                     break;

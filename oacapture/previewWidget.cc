@@ -608,6 +608,120 @@ PreviewWidget::convert16To8Bit ( void* imageData, int length, int format )
 
 
 void
+PreviewWidget::convert10To8Bit ( void* imageData, int length, int format )
+{
+  static bool warnOn8BitPrecision = true;
+
+  switch (format) {
+    case OA_PIX_FMT_GRBG10P:
+      {
+        uint8_t* t = ( uint8_t* ) imageData;
+        uint8_t* s = ( uint8_t* ) imageData;
+
+        for ( int i = 0; i < length; i += 5, s += 5 ) {
+          *t++ = *s;
+          *t++ = *(s+1);
+          *t++ = *(s+2);
+          *t++ = *(s+3);
+          // ignore 5th byte
+
+          if (*(s+4))
+            warnOn8BitPrecision = false;
+        }
+      }
+      break;
+
+    case OA_PIX_FMT_GRBG10:
+      {
+        uint8_t* t = ( uint8_t* ) imageData;
+        uint8_t* s = ( uint8_t* ) imageData;
+
+        for ( int i = 0; i < length; i += 2, s+=2 ) {
+          *t++ = (*s << 6) + (*(s+1) >> 2);
+
+          if (*(s+1) & 0x03)
+            warnOn8BitPrecision = false;
+        }
+      }
+      break;
+
+    default:
+      qWarning() << "Invalid format in " << __FUNCTION__;
+  }
+
+  if (warnOn8BitPrecision)
+  {
+    warnOn8BitPrecision = false; // only once
+    qWarning() << "Failed to detect 10 bit resolution in " << __FUNCTION__;
+  }
+
+}
+
+
+int
+PreviewWidget::convert10To16Bit ( void* imageData, int length, int format )
+{
+  static bool warnOn8BitPrecision = true;
+
+  const int numPixels = length/OA_BYTES_PER_PIXEL(format);
+
+  switch (format) {
+    case OA_PIX_FMT_GRBG10P:
+      {
+        uint16_t* t = (( uint16_t* ) imageData) + (numPixels-4);
+        uint8_t* s = (( uint8_t* ) imageData) +
+                         (numPixels-4) * 5/4;
+
+        for ( int i=0; i < length; i += 5, s -= 5, t -= 4)
+        {
+          const uint8_t lsb = *(s+4);
+
+          uint16_t p1 = *(s)   << 8; p1 += (lsb&0x03) << 6;
+          uint16_t p2 = *(s+1) << 8; p2 += (lsb&0x0c) << 4;
+          uint16_t p3 = *(s+2) << 8; p3 += (lsb&0x30) << 2;
+          uint16_t p4 = *(s+3) << 8; p4 +=  lsb&0xc0;
+          if (lsb)
+            warnOn8BitPrecision = false;
+
+          *t = p1;
+          *(t+1) = p2;
+          *(t+2) = p3;
+          *(t+3) = p4;
+        }
+      }
+      break;
+
+    case OA_PIX_FMT_GRBG10:
+      {
+        uint8_t* t = (( uint8_t* ) imageData) + (numPixels-4)*2;
+        uint8_t* s = (( uint8_t* ) imageData) + (numPixels-4)*2;
+
+        for ( int i=0; i < length; i += 2, s-=2, t-=2)
+        {
+          if (*(s+1) & 0x03) // before it's overwritten
+            warnOn8BitPrecision = false;
+
+          *t = (*s << 6) + (*(s+1) >> 2);
+          *(t+1) = (*(s+1) << 6);
+        }
+      }
+      break;
+
+    default:
+      qWarning() << "Invalid format in " << __FUNCTION__;
+  }
+
+  if (warnOn8BitPrecision)
+  {
+    //warnOn8BitPrecision = false; // only once
+    qWarning() << "Failed to detect 10 bit resolution in " << __FUNCTION__;
+  }
+
+  return numPixels * 2;
+}
+
+
+void
 PreviewWidget::setMonoPalette ( QColor colour )
 {
   unsigned int r = colour.red();
@@ -641,6 +755,7 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
   void*			previewBuffer = imageData;
   void*			writeBuffer = imageData;
   int			currentPreviewBuffer = -1;
+  int			currentWriteBuffer = -1;
   int			writeDemosaicPreviewBuffer = 0;
   int			previewIsDemosaicked = 0;
   int			maxLength;
@@ -711,16 +826,18 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
     }
   } else {
     // do a vertical/horizontal flip if required
+    currentWriteBuffer = ( -1 == currentWriteBuffer ) ? 0 :
+        !currentWriteBuffer;
     if ( self->flipX || self->flipY ) {
       // this is going to make a mess for data we intend to demosaic.
       // the user will have to deal with that
-      ( void ) memcpy ( self->writeImageBuffer[0], writeBuffer, length );
-      self->processFlip ( self->writeImageBuffer[0], length,
+      ( void ) memcpy ( self->writeImageBuffer[ currentWriteBuffer ], writeBuffer, length );
+      self->processFlip ( self->writeImageBuffer[ currentWriteBuffer ], length,
           writePixelFormat );
       // both preview and write will come from this buffer for the
       // time being.  This may change later on
-      previewBuffer = self->writeImageBuffer[0];
-      writeBuffer = self->writeImageBuffer[0];
+      previewBuffer = self->writeImageBuffer[ currentWriteBuffer ];
+      writeBuffer = self->writeImageBuffer[ currentWriteBuffer ];
     }
   }
 
@@ -739,6 +856,15 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
         OA_PIX_FMT_GREY16LE == previewPixelFormat ) {
       reducedGreyscaleBitDepth = 1;
     }
+  }
+  if ( OA_ISBAYER10 ( previewPixelFormat ) ) {
+    currentPreviewBuffer = ( -1 == currentPreviewBuffer ) ? 0 :
+        !currentPreviewBuffer;
+    ( void ) memcpy ( self->previewImageBuffer[ currentPreviewBuffer ],
+        previewBuffer, length );
+    self->convert10To8Bit ( self->previewImageBuffer[ currentPreviewBuffer ],
+        length, previewPixelFormat );
+    previewBuffer = self->previewImageBuffer [ currentPreviewBuffer ];
   }
 
   ( void ) gettimeofday ( &t, 0 );
@@ -939,7 +1065,7 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
     self->manualStop = 0;
   }
 
-if ( output && self->recordingInProgress ) {
+  if ( output && self->recordingInProgress ) {
     if ( config.limitEnabled ) {
       int finished = 0;
       float percentage = 0;
@@ -1020,6 +1146,8 @@ PreviewWidget::formatToCfaPattern ( int format )
       return OA_DEMOSAIC_GBRG;
       break;
     case OA_PIX_FMT_GRBG8:
+    case OA_PIX_FMT_GRBG10:
+    case OA_PIX_FMT_GRBG10P:
     case OA_PIX_FMT_GRBG16LE:
     case OA_PIX_FMT_GRBG16BE:
       return OA_DEMOSAIC_GRBG;

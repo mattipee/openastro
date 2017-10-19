@@ -121,10 +121,8 @@ oaV4L2CameraGetFramePixelFormat ( oaCamera* camera, int depth )
   switch ( cameraInfo->videoCurrent ) {
     case V4L2_PIX_FMT_RGB24:
       return OA_PIX_FMT_RGB24;
-      break;
     case V4L2_PIX_FMT_GREY:
       return OA_PIX_FMT_GREY8;
-      break;
     case V4L2_PIX_FMT_SBGGR8:
       return OA_PIX_FMT_BGGR8;
     case V4L2_PIX_FMT_SRGGB8:
@@ -133,6 +131,10 @@ oaV4L2CameraGetFramePixelFormat ( oaCamera* camera, int depth )
       return OA_PIX_FMT_GRBG8;
     case V4L2_PIX_FMT_SGBRG8:
       return OA_PIX_FMT_GBRG8;
+    case V4L2_PIX_FMT_SGRBG10:
+      return OA_PIX_FMT_GRBG10;
+    case V4L2_PIX_FMT_SGRBG10P:
+      return OA_PIX_FMT_GRBG10P;
     case V4L2_PIX_FMT_YUV420:
     case V4L2_PIX_FMT_YUYV:
     case V4L2_PIX_FMT_Y16:
