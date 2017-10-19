@@ -1271,12 +1271,14 @@ oaV4L2InitCamera ( oaCameraDevice* device )
         cameraInfo->videoGrey = 0;
         cameraInfo->videoRGB24 = cameraInfo->videoYUYV = 0;
         cameraInfo->videoYUV420 = 0;
+        break;
       case V4L2_PIX_FMT_GREY:
         cameraInfo->videoCurrent = V4L2_PIX_FMT_GREY;
         cameraInfo->videoGrey = 1;
         cameraInfo->videoGrey16 = 0;
         cameraInfo->videoRGB24 = cameraInfo->videoYUYV = 0;
         cameraInfo->videoYUV420 = 0;
+        break;
     }
   }
 
