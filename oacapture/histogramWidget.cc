@@ -208,6 +208,7 @@ HistogramWidget::paintEvent ( QPaintEvent* event )
   if ( 1 == colours && showingThreeGraphs ) {
     // resize ( 300, 150 );
     setFixedSize ( 300, 150 );
+    currentLayoutIsSplit = 0;
     showingThreeGraphs = 0;
   } else {
     if ( newLayoutIsSplit != currentLayoutIsSplit ) {
