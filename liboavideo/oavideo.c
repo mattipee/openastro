@@ -34,7 +34,7 @@
 #include "grey.h"
 
 int
-oaconvert ( void* source, void* target, int xSize, int ySize, int sourceFormat,
+oaconvert ( const void* source, void* target, int xSize, int ySize, int sourceFormat,
     int targetFormat )
 {
   if ( OA_ISGREYSCALE( targetFormat ) ) {
@@ -87,7 +87,7 @@ oaconvert ( void* source, void* target, int xSize, int ySize, int sourceFormat,
 //#define OA_PIX_FMT_YUV410 		31
 
 int
-oaconvert_greyscale ( void* source, void* target, int xSize, int ySize, int sourceFormat,
+oaconvert_greyscale ( const void* source, void* target, int xSize, int ySize, int sourceFormat,
     int targetFormat )
 {
   int length;

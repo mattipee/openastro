@@ -100,6 +100,7 @@ typedef struct
   int			flipX;
   int			flipY;
   int			demosaic;
+  int			greyscale;
 
   // camera config
   int			sixteenBit;

@@ -41,6 +41,7 @@ extern "C" {
 
 #include "configuration.h"
 #include "previewWidget.h"
+#include "captureWidget.h"
 #include "outputHandler.h"
 #include "histogramWidget.h"
 #include "focusOverlay.h"
@@ -68,9 +69,6 @@ PreviewWidget::PreviewWidget ( QWidget* parent ) : QFrame ( parent )
   movingReticle = rotatingReticle = rotationAngle = 0;
   savedXSize = savedYSize = 0;
   recalculateDimensions ( zoomFactor );
-  previewBufferLength = 0;
-  previewImageBuffer[0] = writeImageBuffer[0] = 0;
-  previewImageBuffer[1] = writeImageBuffer[1] = 0;
   expectedSize = config.imageSizeX * config.imageSizeY *
       OA_BYTES_PER_PIXEL( videoFramePixelFormat );
   demosaic = config.demosaic;
@@ -101,14 +99,6 @@ PreviewWidget::PreviewWidget ( QWidget* parent ) : QFrame ( parent )
 
 PreviewWidget::~PreviewWidget()
 {
-  if ( previewImageBuffer[0] ) {
-    free ( previewImageBuffer[0] );
-    free ( previewImageBuffer[1] );
-  }
-  if ( writeImageBuffer[0] ) {
-    free ( writeImageBuffer[0] );
-    free ( writeImageBuffer[1] );
-  }
 }
 
 
@@ -124,20 +114,8 @@ PreviewWidget::updatePreviewSize ( void )
 {
   int zoomFactor = state.zoomWidget->getZoomFactor();
   recalculateDimensions ( zoomFactor );
-  expectedSize = config.imageSizeX * config.imageSizeY *
-      OA_BYTES_PER_PIXEL( videoFramePixelFormat );
-  int newBufferLength = config.imageSizeX * config.imageSizeY * 3;
-  if ( newBufferLength > previewBufferLength ) {
-    if (!( previewImageBuffer[0] = realloc ( previewImageBuffer[0],
-        newBufferLength ))) {
-      qWarning() << "preview image buffer realloc failed";
-    }
-    if (!( previewImageBuffer[1] = realloc ( previewImageBuffer[1],
-        newBufferLength ))) {
-      qWarning() << "preview image buffer realloc failed";
-    }
-    previewBufferLength = newBufferLength;
-  }
+  expectedSize        = config.imageSizeX * config.imageSizeY *
+      OA_BYTES_PER_PIXEL( videoFramePixelFormat ); // full depth
   diagonalLength = sqrt ( config.imageSizeX * config.imageSizeX +
       config.imageSizeY * config.imageSizeY );
 }
@@ -397,330 +375,6 @@ PreviewWidget::forceRecordingStop ( void )
 }
 
 
-void
-PreviewWidget::processFlip ( void* imageData, int length, int format )
-{
-  uint8_t* data = ( uint8_t* ) imageData;
-  int assumedFormat = format;
-
-  // fake up a format for mosaic frames here as properly flipping a
-  // mosaicked frame would be quite hairy
-
-  if ( OA_ISBAYER8 ( format )) {
-    assumedFormat = OA_PIX_FMT_GREY8;
-  } else {
-    if ( OA_ISBAYER16 ( format )) {
-      assumedFormat = OA_PIX_FMT_GREY16BE;
-    }
-  }
-
-  switch ( assumedFormat ) {
-    case OA_PIX_FMT_GREY8:
-      processFlip8Bit ( data, length );
-      break;
-    case OA_PIX_FMT_GREY16BE:
-    case OA_PIX_FMT_GREY16LE:
-      processFlip16Bit ( data, length );
-      break;
-    case OA_PIX_FMT_RGB24:
-    case OA_PIX_FMT_BGR24:
-      processFlip24BitColour ( data, length );
-      break;
-    default:
-      qWarning() << __FUNCTION__ << " unable to flip format " << format;
-      break;
-  }
-}
-
-
-void
-PreviewWidget::processFlip8Bit ( uint8_t* imageData, int length )
-{
-  if ( flipX && flipY ) {
-    uint8_t* p1 = imageData;
-    uint8_t* p2 = imageData + length - 1;
-    uint8_t s;
-    while ( p1 < p2 ) {
-      s = *p1;
-      *p1++ = *p2;
-      *p2-- = s;
-    }
-  } else {
-    if ( flipX ) {
-      uint8_t* p1;
-      uint8_t* p2;
-      uint8_t s;
-      for ( unsigned int y = 0; y < config.imageSizeY; y++ ) {
-        p1 = imageData + y * config.imageSizeX;
-        p2 = p1 + config.imageSizeX - 1;
-        while ( p1 < p2 ) {
-          s = *p1;
-          *p1++ = *p2;
-          *p2-- = s;
-        }
-      }
-    }
-    if ( flipY ) {
-      uint8_t* p1;
-      uint8_t* p2;
-      uint8_t s;
-      p1 = imageData;
-      for ( unsigned int y = config.imageSizeY - 1; y >= config.imageSizeY / 2;
-          y-- ) {
-        p2 = imageData + y * config.imageSizeX;
-        for ( unsigned int x = 0; x < config.imageSizeX; x++ ) {
-          s = *p1;
-          *p1++ = *p2;
-          *p2++ = s;
-        }
-      }
-    }
-  }
-}
-
-
-void
-PreviewWidget::processFlip16Bit ( uint8_t* imageData, int length )
-{
-  if ( flipX && flipY ) {
-    uint8_t* p1 = imageData;
-    uint8_t* p2 = imageData + length - 2;
-    uint8_t s;
-    while ( p1 < p2 ) {
-      s = *p1;
-      *p1++ = *p2;
-      *p2++ = s;
-      s = *p1;
-      *p1++ = *p2;
-      *p2 = s;
-      p2 -= 3;
-    }
-  } else {
-    if ( flipX ) {
-      uint8_t* p1;
-      uint8_t* p2;
-      uint8_t s;
-      for ( unsigned int y = 0; y < config.imageSizeY; y++ ) {
-        p1 = imageData + y * config.imageSizeX * 2;
-        p2 = p1 + ( config.imageSizeX - 1 ) * 2;
-        while ( p1 < p2 ) {
-          s = *p1;
-          *p1++ = *p2;
-          *p2++ = s;
-          s = *p1;
-          *p1++ = *p2;
-          *p2 = s;
-          p2 -= 3;
-        }
-      }
-    }
-    if ( flipY ) {
-      uint8_t* p1;
-      uint8_t* p2;
-      uint8_t s;
-      p1 = imageData;
-      for ( unsigned int y = config.imageSizeY - 1; y > config.imageSizeY / 2;
-          y-- ) {
-        p2 = imageData + y * config.imageSizeX * 2;
-        for ( unsigned int x = 0; x < config.imageSizeX * 2; x++ ) {
-          s = *p1;
-          *p1++ = *p2;
-          *p2++ = s;
-        }
-      }
-    }
-  }
-}
-
-
-void
-PreviewWidget::processFlip24BitColour ( uint8_t* imageData, int length )
-{
-  if ( flipX && flipY ) {
-    uint8_t* p1 = imageData;
-    uint8_t* p2 = imageData + length - 3;
-    uint8_t s;
-    while ( p1 < p2 ) {
-      s = *p1;
-      *p1++ = *p2;
-      *p2++ = s;
-      s = *p1;
-      *p1++ = *p2;
-      *p2++ = s;
-      s = *p1;
-      *p1++ = *p2;
-      *p2 = s;
-      p2 -= 5;
-    }
-  } else {
-    if ( flipX ) {
-      uint8_t* p1;
-      uint8_t* p2;
-      uint8_t s;
-      for ( unsigned int y = 0; y < config.imageSizeY; y++ ) {
-        p1 = imageData + y * config.imageSizeX * 3;
-        p2 = p1 + ( config.imageSizeX - 1 ) * 3;
-        while ( p1 < p2 ) {
-          s = *p1;
-          *p1++ = *p2;
-          *p2++ = s;
-          s = *p1;
-          *p1++ = *p2;
-          *p2++ = s;
-          s = *p1;
-          *p1++ = *p2;
-          *p2 = s;
-          p2 -= 5;
-        }
-      }
-    }
-    if ( flipY ) {
-      uint8_t* p1;
-      uint8_t* p2;
-      uint8_t s;
-      p1 = imageData;
-      for ( unsigned int y = config.imageSizeY - 1; y > config.imageSizeY / 2;
-          y-- ) {
-        p2 = imageData + y * config.imageSizeX * 3;
-        for ( unsigned int x = 0; x < config.imageSizeX * 3; x++ ) {
-          s = *p1;
-          *p1++ = *p2;
-          *p2++ = s;
-        }
-      }
-    }
-  }
-}
-
-
-void
-PreviewWidget::convert16To8Bit ( void* imageData, int length, int format )
-{
-  uint8_t* t = ( uint8_t* ) imageData;
-  uint8_t* s = ( uint8_t* ) imageData;
-
-  if ( OA_ISLITTE_ENDIAN( format )) {
-    s++;
-  }
-  for ( int i = 0; i < length; i += 2, s += 2 ) {
-    *t++ = *s;
-  }
-}
-
-
-void
-PreviewWidget::convert10To8Bit ( void* imageData, int length, int format )
-{
-  static bool warnOn8BitPrecision = true;
-
-  switch (format) {
-    case OA_PIX_FMT_GRBG10P:
-      {
-        uint8_t* t = ( uint8_t* ) imageData;
-        uint8_t* s = ( uint8_t* ) imageData;
-
-        for ( int i = 0; i < length; i += 5, s += 5 ) {
-          *t++ = *s;
-          *t++ = *(s+1);
-          *t++ = *(s+2);
-          *t++ = *(s+3);
-          // ignore 5th byte
-
-          if (*(s+4))
-            warnOn8BitPrecision = false;
-        }
-      }
-      break;
-
-    case OA_PIX_FMT_GRBG10:
-      {
-        uint8_t* t = ( uint8_t* ) imageData;
-        uint8_t* s = ( uint8_t* ) imageData;
-
-        for ( int i = 0; i < length; i += 2, s+=2 ) {
-          *t++ = (*s << 6) + (*(s+1) >> 2);
-
-          if (*(s+1) & 0x03)
-            warnOn8BitPrecision = false;
-        }
-      }
-      break;
-
-    default:
-      qWarning() << "Invalid format in " << __FUNCTION__;
-  }
-
-  if (warnOn8BitPrecision)
-  {
-    warnOn8BitPrecision = false; // only once
-    qWarning() << "Failed to detect 10 bit resolution in " << __FUNCTION__;
-  }
-
-}
-
-
-int
-PreviewWidget::convert10To16Bit ( void* imageData, int length, int format )
-{
-  static bool warnOn8BitPrecision = true;
-
-  const int numPixels = length/OA_BYTES_PER_PIXEL(format);
-
-  switch (format) {
-    case OA_PIX_FMT_GRBG10P:
-      {
-        uint16_t* t = (( uint16_t* ) imageData) + (numPixels-4);
-        uint8_t* s = (( uint8_t* ) imageData) +
-                         (numPixels-4) * 5/4;
-
-        for ( int i=0; i < length; i += 5, s -= 5, t -= 4)
-        {
-          const uint8_t lsb = *(s+4);
-
-          uint16_t p1 = *(s)   << 8; p1 += (lsb&0x03) << 6;
-          uint16_t p2 = *(s+1) << 8; p2 += (lsb&0x0c) << 4;
-          uint16_t p3 = *(s+2) << 8; p3 += (lsb&0x30) << 2;
-          uint16_t p4 = *(s+3) << 8; p4 +=  lsb&0xc0;
-          if (lsb)
-            warnOn8BitPrecision = false;
-
-          *t = p1;
-          *(t+1) = p2;
-          *(t+2) = p3;
-          *(t+3) = p4;
-        }
-      }
-      break;
-
-    case OA_PIX_FMT_GRBG10:
-      {
-        uint8_t* t = (( uint8_t* ) imageData) + (numPixels-4)*2;
-        uint8_t* s = (( uint8_t* ) imageData) + (numPixels-4)*2;
-
-        for ( int i=0; i < length; i += 2, s-=2, t-=2)
-        {
-          if (*(s+1) & 0x03) // before it's overwritten
-            warnOn8BitPrecision = false;
-
-          *t = (*s << 6) + (*(s+1) >> 2);
-          *(t+1) = (*(s+1) << 6);
-        }
-      }
-      break;
-
-    default:
-      qWarning() << "Invalid format in " << __FUNCTION__;
-  }
-
-  if (warnOn8BitPrecision)
-  {
-    //warnOn8BitPrecision = false; // only once
-    qWarning() << "Failed to detect 10 bit resolution in " << __FUNCTION__;
-  }
-
-  return numPixels * 2;
-}
-
 
 void
 PreviewWidget::setMonoPalette ( QColor colour )
@@ -751,16 +405,6 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
   struct timeval	t;
   int			doDisplay = 0;
   int			doHistogram = 0;
-  int			previewPixelFormat, writePixelFormat;
-  // write straight from the data if possible
-  void*			previewBuffer = imageData;
-  void*			writeBuffer = imageData;
-  int			currentPreviewBuffer = -1;
-  int			currentWriteBuffer = -1;
-  int			writeDemosaicPreviewBuffer = 0;
-  int			previewIsDemosaicked = 0;
-  int			maxLength;
-  const char*		timestamp;
 
   // don't do anything if the length is not as expected
   if ( length != self->expectedSize ) {
@@ -769,174 +413,73 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
     return 0;
   }
 
-  // assign the temporary buffers for image transforms if they
-  // don't already exist or the existing ones are too small
 
-  maxLength = config.imageSizeX * config.imageSizeY * 6;
-  if ( !self->previewImageBuffer[0] ||
-      self->previewBufferLength < maxLength ) {
-    self->previewBufferLength = maxLength;
-    if (!( self->previewImageBuffer[0] =
-        realloc ( self->previewImageBuffer[0], self->previewBufferLength ))) {
-      qWarning() << "preview image buffer 0 malloc failed";
-      return 0;
-    }
-    if (!( self->previewImageBuffer[1] =
-        realloc ( self->previewImageBuffer[1], self->previewBufferLength ))) {
-      qWarning() << "preview image buffer 1 malloc failed";
-      return 0;
-    }
-  }
-  if ( !self->writeImageBuffer[0] ||
-      self->writeBufferLength < maxLength ) {
-    self->writeBufferLength = maxLength;
-    if (!( self->writeImageBuffer[0] =
-        realloc ( self->writeImageBuffer[0], self->writeBufferLength ))) {
-      qWarning() << "write image buffer 0 malloc failed";
-      return 0;
-    }
-    if (!( self->writeImageBuffer[1] =
-        realloc ( self->writeImageBuffer[1], self->writeBufferLength ))) {
-      qWarning() << "write image buffer 1 malloc failed";
-      return 0;
-    }
-  }
-
-  previewPixelFormat = writePixelFormat = self->videoFramePixelFormat;
-
-  // if we have a luminance/chrominance video format then we need to
-  // unpack that first
-
-  if ( OA_IS_LUM_CHROM( self->videoFramePixelFormat )) {
-    // this is going to make the flip quite ugly and means we need to
-    // start using currentPreviewBuffer too
-    currentPreviewBuffer = ( -1 == currentPreviewBuffer ) ? 0 :
-        !currentPreviewBuffer;
-    previewPixelFormat = OA_PIX_FMT_RGB24;
-    ( void ) oaconvert ( previewBuffer,
-        self->previewImageBuffer[ currentPreviewBuffer ], config.imageSizeX,
-        config.imageSizeY, self->videoFramePixelFormat, previewPixelFormat );
-    previewBuffer = self->previewImageBuffer [ currentPreviewBuffer ];
-
-    // we can flip the preview image here if required, but not the
-    // image that is going to be written out.
-    // FIX ME -- work this out some time
-
-    if ( self->flipX || self->flipY ) {
-      self->processFlip ( previewBuffer, length, previewPixelFormat );
-    }
-  } else {
-    // do a vertical/horizontal flip if required
-    currentWriteBuffer = ( -1 == currentWriteBuffer ) ? 0 :
-        !currentWriteBuffer;
-    if ( self->flipX || self->flipY ) {
-      // this is going to make a mess for data we intend to demosaic.
-      // the user will have to deal with that
-      ( void ) memcpy ( self->writeImageBuffer[ currentWriteBuffer ], writeBuffer, length );
-      self->processFlip ( self->writeImageBuffer[ currentWriteBuffer ], length,
-          writePixelFormat );
-      // both preview and write will come from this buffer for the
-      // time being.  This may change later on
-      previewBuffer = self->writeImageBuffer[ currentWriteBuffer ];
-      writeBuffer = self->writeImageBuffer[ currentWriteBuffer ];
-    }
-  }
-
-  int reducedGreyscaleBitDepth = 0;
-  if ( OA_PIX_FMT_GREY16BE == previewPixelFormat ||
-      OA_PIX_FMT_GREY16LE == previewPixelFormat ||
-      OA_ISBAYER16 ( previewPixelFormat )) {
-    currentPreviewBuffer = ( -1 == currentPreviewBuffer ) ? 0 :
-        !currentPreviewBuffer;
-    ( void ) memcpy ( self->previewImageBuffer[ currentPreviewBuffer ],
-        previewBuffer, length );
-    self->convert16To8Bit ( self->previewImageBuffer[ currentPreviewBuffer ],
-        length, previewPixelFormat );
-    previewBuffer = self->previewImageBuffer [ currentPreviewBuffer ];
-    if (  OA_PIX_FMT_GREY16BE == previewPixelFormat ||
-        OA_PIX_FMT_GREY16LE == previewPixelFormat ) {
-      reducedGreyscaleBitDepth = 1;
-    }
-  }
-  if ( OA_ISBAYER10 ( previewPixelFormat ) ) {
-    currentPreviewBuffer = ( -1 == currentPreviewBuffer ) ? 0 :
-        !currentPreviewBuffer;
-    ( void ) memcpy ( self->previewImageBuffer[ currentPreviewBuffer ],
-        previewBuffer, length );
-    self->convert10To8Bit ( self->previewImageBuffer[ currentPreviewBuffer ],
-        length, previewPixelFormat );
-    previewBuffer = self->previewImageBuffer [ currentPreviewBuffer ];
-  }
 
   ( void ) gettimeofday ( &t, 0 );
   unsigned long now = ( unsigned long ) t.tv_sec * 1000 +
       ( unsigned long ) t.tv_usec / 1000;
 
   int cfaPattern = config.cfaPattern;
-  if ( OA_ISBAYER ( previewPixelFormat )) {
+  if ( OA_ISBAYER ( self->videoFramePixelFormat )) {
     if ( OA_DEMOSAIC_AUTO == cfaPattern ) {
-      cfaPattern = self->formatToCfaPattern ( previewPixelFormat );
+      cfaPattern = self->formatToCfaPattern ( self->videoFramePixelFormat );
     }
   }
 
+  // Preview Image
+  self->previewBuffer.reset(imageData, self->videoFramePixelFormat,
+                            config.imageSizeX, config.imageSizeY);
+
   if ( self->previewEnabled ) {
+    // Convert GREY16 to GREY8 or BAYERXX to BAYER8 (or RGB48XX to RGB24??) for preview
+    // Convert YUV to RGB24, (or RGB48XX to RGB24 TODO) for preview
+    // we can flip the preview image here if required
+    self->previewBuffer.ensure8BitGreyOrRaw();
+    self->previewBuffer.ensure24BitRGB();
+    self->previewBuffer.flip(self->flipX, self->flipY);
+
     if (( self->lastDisplayUpdateTime + self->frameDisplayInterval ) < now ) {
       self->lastDisplayUpdateTime = now;
       doDisplay = 1;
 
+      // Demosaic the preview
       if ( self->demosaic && config.demosaicPreview ) {
-        if ( OA_ISBAYER ( previewPixelFormat )) {
-          currentPreviewBuffer = ( -1 == currentPreviewBuffer ) ? 0 :
-              !currentPreviewBuffer;
-          // Use the demosaicking to copy the data to the previewImageBuffer
-          ( void ) oademosaic ( previewBuffer,
-              self->previewImageBuffer[ currentPreviewBuffer ],
-              config.imageSizeX, config.imageSizeY, 8, cfaPattern,
-              config.demosaicMethod );
-          if ( config.demosaicOutput && previewBuffer == writeBuffer ) {
-            writeDemosaicPreviewBuffer = 1;
-          }
-          previewIsDemosaicked = 1;
-          previewBuffer = self->previewImageBuffer [ currentPreviewBuffer ];
-        }
+        self->previewBuffer.demosaic(cfaPattern, config.demosaicMethod);
+      }
+
+      // Convert to greyscale (either original, or demosaicked if that happened)
+      if ( config.greyscale ) {
+        self->previewBuffer.greyscale(OA_PIX_FMT_GREY8);
       }
 
       if ( config.showFocusAid ) {
-        int fmt = previewPixelFormat;
+        int fmt = OA_PIX_FMT_RGB24; // TODO check... ever RGB48?
 
-        if ( previewIsDemosaicked ) {
-          fmt = OA_ISBAYER16 ( fmt )  ? OA_PIX_FMT_RGB48BE :
-              OA_PIX_FMT_RGB24;
-        }
         // This call should be thread-safe
-        state->focusOverlay->addScore ( oaFocusScore ( previewBuffer,
+        state->focusOverlay->addScore ( oaFocusScore ( self->previewBuffer.write_buffer(),
             0, config.imageSizeX, config.imageSizeY, fmt ));
       }
 
       QImage* newImage;
       QImage* swappedImage = 0;
 
-      if ( OA_PIX_FMT_GREY8 == self->videoFramePixelFormat ||
-           ( OA_ISBAYER ( previewPixelFormat ) && ( !self->demosaic ||
-           !config.demosaicPreview )) || reducedGreyscaleBitDepth ) {
-        newImage = new QImage (( const uint8_t* ) previewBuffer,
+      if ( self->previewBuffer.is8bit() ) {
+        newImage = new QImage (( const uint8_t* ) self->previewBuffer.read_buffer(),
             config.imageSizeX, config.imageSizeY, config.imageSizeX,
             QImage::Format_Indexed8 );
-        if (( OA_PIX_FMT_GREY8 == self->videoFramePixelFormat ||
-            reducedGreyscaleBitDepth ) && config.colourise ) {
-          newImage->setColorTable ( self->falseColourTable );
-        } else {
-          newImage->setColorTable ( self->greyscaleColourTable );
-        }
+
+        newImage->setColorTable(( OA_PIX_FMT_GREY8 == self->previewBuffer.getPixelFormat() &&
+                                  config.colourise ) ? self->falseColourTable
+                                                     : self->greyscaleColourTable);
         swappedImage = newImage;
       } else {
         // Need the stride size here or QImage appears to "tear" the
         // right hand edge of the image when the X dimension is an odd
         // number of pixels
-        newImage = new QImage (( const uint8_t* ) previewBuffer,
+        newImage = new QImage (( const uint8_t* ) self->previewBuffer.read_buffer(),
             config.imageSizeX, config.imageSizeY, config.imageSizeX * 3,
             QImage::Format_RGB888 );
-        if ( OA_PIX_FMT_BGR24 == previewPixelFormat ) {
+        if ( OA_PIX_FMT_BGR24 == self->previewBuffer.getPixelFormat() ) {
           swappedImage = new QImage ( newImage->rgbSwapped());
         } else {
           swappedImage = newImage;
@@ -971,6 +514,11 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
     }
   }
 
+
+  // Output Image
+  self->writeBuffer.reset(imageData, self->videoFramePixelFormat,
+          config.imageSizeX, config.imageSizeY);
+
   OutputHandler* output = 0;
   if ( !state->pauseEnabled ) {
     // This should be thread-safe
@@ -981,30 +529,47 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
         self->setNewFirstFrameTime = 0;
       }
       state->lastFrameTime = now;
-      if ( config.demosaicOutput && OA_ISBAYER ( writePixelFormat )) {
-        if ( writeDemosaicPreviewBuffer ) {
-          writeBuffer = previewBuffer;
-        } else {
-          // we can use the preview buffer here because we're done with it
-          // for actual preview purposes
-          // If it's possible that the write CFA pattern is not the same
-          // as the preview one, this code will need fixing to reset
-          // cfaPattern, but I can't see that such a thing is possible
-          // at the moment
-          ( void ) oademosaic ( writeBuffer,
-              self->previewImageBuffer[0], config.imageSizeX,
-              config.imageSizeY, 8, cfaPattern, config.demosaicMethod );
-          writeBuffer = self->previewImageBuffer[0];
-        }
-        writePixelFormat = OA_DEMOSAIC_FMT ( writePixelFormat );
+
+
+      // Try flipping the image if required
+      // this is going to make a mess for data we intend to demosaic.
+      // the user will have to deal with that
+      if ( self->flipX || self->flipY )
+      {
+        // We may not be able to flip the image that is going to be written out as
+        // some formats don't have a flip routine written yet, eg 10bit bayer, YUV, RGB48
+        // FIX ME - work this out some time
+        self->writeBuffer.flip(self->flipX, self->flipY);
       }
+
+      // Demosaic the output frame
+      if ( config.demosaicOutput ) {
+        // If it's possible that the write CFA pattern is not the same
+        // as the preview one, this code will need fixing to reset
+        // cfaPattern, but I can't see that such a thing is possible
+        // at the moment
+        self->writeBuffer.demosaic(cfaPattern, config.demosaicMethod);
+      }
+
+      // Convert output frame to greyscale
+      if (config.greyscale) {
+        self->writeBuffer.greyscale();
+      }
+
       // These calls should be thread-safe
-      if ( state->timer->isInitialised() && state->timer->isRunning()) {
-        timestamp = state->timer->readTimestamp();
-      } else {
-        timestamp = 0;
-      }
-      if ( output->addFrame ( writeBuffer, timestamp,
+      const char* timestamp = ( state->timer->isInitialised()
+                                && state->timer->isRunning() )
+          ? state->timer->readTimestamp() : 0;
+
+      // TODO TODO
+      // stopped short of being a const crusader here... really should be
+      // passing const pointer to addFrame, but it's a virtual function to
+      // all of the output formats, so didn't bother.
+      // here, we just get a non-const buffer... this is fine if we've already
+      // meddled with it, otherwise it's going to incur a copy just to satisfy
+      // the interface.
+      // I am a big fan of const.
+      if ( output->addFrame ( self->writeBuffer.write_buffer(), timestamp,
           // This call should be thread-safe
           state->controlWidget->getCurrentExposure()) < 0 ) {
         self->recordingInProgress = 0;
@@ -1033,8 +598,9 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
 
     if ( state->histogramOn ) {
       // This call should be thread-safe
-      state->histogramWidget->process ( writeBuffer, length,
-          writePixelFormat );
+      // TODO coloured histogram for demosaicked images
+      state->histogramWidget->process ( self->writeBuffer.read_buffer(), self->writeBuffer.frameLength(),
+          self->writeBuffer.getPixelFormat() );
       doHistogram = 1;
     }
   }

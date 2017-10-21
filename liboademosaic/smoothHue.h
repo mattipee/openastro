@@ -27,6 +27,6 @@
 #ifndef OPENASTRO_DEMOSAIC_SMOOTHHUE_H
 #define OPENASTRO_DEMOSAIC_SMOOTHHUE_H
 
-extern void	oadSmoothHue ( void*, void*, int, int, int, int );
+extern void	oadSmoothHue ( const void*, void*, int, int, int, int );
 
 #endif	/* OPENASTRO_DEMOSAIC_SMOOTHHUE_H */

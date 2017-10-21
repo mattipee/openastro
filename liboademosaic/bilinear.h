@@ -27,6 +27,6 @@
 #ifndef OPENASTRO_DEMOSAIC_BILINEAR_H
 #define OPENASTRO_DEMOSAIC_BILINEAR_H
 
-extern void	oadBilinear ( void*, void*, int, int, int, int );
+extern void	oadBilinear ( const void*, void*, int, int, int, int );
 
 #endif	/* OPENASTRO_DEMOSAIC_BILINEAR_H */

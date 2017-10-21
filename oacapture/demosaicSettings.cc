@@ -156,16 +156,22 @@ DemosaicSettings::storeSettings ( void )
   }
   if ( state.camera->isInitialised()) {
     int format = state.camera->videoFramePixelFormat ( 0 );
+    // TODO TODO
+    // find a better way of configuring availability of capture formats
+    // this logic is repeated half a dozen times
+    // captureWidget should decide
     state.captureWidget->enableTIFFCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput )) ? 1 : 0 );
+        ( config.demosaic && config.demosaicOutput ) ||
+        config.greyscale) ? 1 : 0 );
     state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput )) ? 1 : 0 );
+        ( config.demosaic && config.demosaicOutput ) ||
+        config.greyscale) ? 1 : 0 );
     state.captureWidget->enableFITSCapture (( !OA_ISBAYER( format ) ||
         ( OA_ISBAYER8( format ) && config.demosaic &&
-        config.demosaicOutput )) ? 1 : 0 );
+        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
     state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
         ( OA_ISBAYER( format ) && config.demosaic &&
-        config.demosaicOutput )) ? 1 : 0 );
+        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
   }
 }
 

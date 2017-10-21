@@ -295,6 +295,7 @@ MainWindow::readConfig ( void )
     config.flipX = 0;
     config.flipY = 0;
     config.demosaic = 0;
+    config.greyscale = 0;
 
     config.sixteenBit = 0;
     config.binning2x2 = 0;
@@ -409,6 +410,7 @@ MainWindow::readConfig ( void )
     config.flipX = settings.value ( "options/flipX", 0 ).toInt();
     config.flipY = settings.value ( "options/flipY", 0 ).toInt();
     config.demosaic = settings.value ( "options/demosaic", 0 ).toInt();
+    config.greyscale = settings.value ( "options/greyscale", 0 ).toInt();
 
     config.sixteenBit = settings.value ( "camera/sixteenBit", 0 ).toInt();
     config.binning2x2 = settings.value ( "camera/binning2x2", 0 ).toInt();
@@ -952,6 +954,7 @@ MainWindow::writeConfig ( void )
   settings.setValue ( "options/flipX", config.flipX );
   settings.setValue ( "options/flipY", config.flipY );
   settings.setValue ( "options/demosaic", config.demosaic );
+  settings.setValue ( "options/greyscale", config.greyscale );
 
   settings.setValue ( "camera/sixteenBit", config.sixteenBit );
   settings.setValue ( "camera/binning2x2", config.binning2x2 );
@@ -1342,6 +1345,13 @@ MainWindow::createMenus ( void )
   demosaicOpt->setChecked ( config.demosaic );
   connect ( demosaicOpt, SIGNAL( changed()), this, SLOT( enableDemosaic()));
 
+  greyscaleOpt = new QAction ( QIcon ( ":/qt-icons/greyscale.png" ),
+      tr ( "Greyscale" ), this );
+  greyscaleOpt->setCheckable ( true );
+  greyscaleOpt->setChecked ( config.greyscale );
+  connect ( greyscaleOpt, SIGNAL( changed()), this, SLOT( enableGreyscale()));
+
+  
   optionsMenu = menuBar()->addMenu ( tr ( "&Options" ));
   optionsMenu->addAction ( histogramOpt );
 #ifdef ENABLE_AUTOALIGN
@@ -1364,6 +1374,7 @@ MainWindow::createMenus ( void )
   optionsMenu->addAction ( flipX );
   optionsMenu->addAction ( flipY );
   optionsMenu->addAction ( demosaicOpt );
+  optionsMenu->addAction ( greyscaleOpt );
 
   // settings menu
 
@@ -1565,16 +1576,22 @@ MainWindow::connectCamera ( int deviceIndex )
   oldHistogramState = -1;
 
   format = state.camera->videoFramePixelFormat();
+  // TODO TODO
+  // find a better way of configuring availability of capture formats
+  // this logic is repeated half a dozen times
+  // captureWidget should decide
   state.captureWidget->enableTIFFCapture (( !OA_ISBAYER( format ) ||
-      ( config.demosaic && config.demosaicOutput )) ? 1 : 0 );
+      ( config.demosaic && config.demosaicOutput ) ||
+      config.greyscale) ? 1 : 0 );
   state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
-      ( config.demosaic && config.demosaicOutput )) ? 1 : 0 );
+      ( config.demosaic && config.demosaicOutput ) ||
+      config.greyscale) ? 1 : 0 );
   state.captureWidget->enableFITSCapture (( !OA_ISBAYER( format ) ||
       ( OA_ISBAYER8( format ) && config.demosaic &&
-      config.demosaicOutput )) ? 1 : 0 );
+      config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
   state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
       ( OA_ISBAYER( format ) && config.demosaic &&
-      config.demosaicOutput )) ? 1 : 0 );
+      config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
 }
 
 
@@ -2087,16 +2104,51 @@ MainWindow::enableDemosaic ( void )
   state.previewWidget->enableDemosaic ( demosaicState );
   if ( state.camera->isInitialised()) {
     format = state.camera->videoFramePixelFormat ( 0 );
+    // TODO TODO
+    // find a better way of configuring availability of capture formats
+    // this logic is repeated half a dozen times
+    // captureWidget should decide
     state.captureWidget->enableTIFFCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput )) ? 1 : 0 );
+        ( config.demosaic && config.demosaicOutput ) ||
+        config.greyscale) ? 1 : 0 );
     state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput )) ? 1 : 0 );
+        ( config.demosaic && config.demosaicOutput ) ||
+        config.greyscale) ? 1 : 0 );
     state.captureWidget->enableFITSCapture (( !OA_ISBAYER( format ) ||
         ( OA_ISBAYER8( format ) && config.demosaic &&
-        config.demosaicOutput )) ? 1 : 0 );
+        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
     state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
         ( OA_ISBAYER( format ) && config.demosaic &&
-        config.demosaicOutput )) ? 1 : 0 );
+        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
+  }
+}
+
+
+void
+MainWindow::enableGreyscale ( void )
+{
+  config.greyscale = greyscaleOpt->isChecked() ? 1 : 0;
+  int format;
+
+  if ( state.camera->isInitialised()) {
+    format = state.camera->videoFramePixelFormat ( 0 );
+
+    // TODO TODO
+    // find a better way of configuring availability of capture formats
+    // this logic is repeated half a dozen times
+    // captureWidget should decide
+    state.captureWidget->enableTIFFCapture (( !OA_ISBAYER( format ) ||
+        ( config.demosaic && config.demosaicOutput ) ||
+        config.greyscale) ? 1 : 0 );
+    state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
+        ( config.demosaic && config.demosaicOutput ) ||
+        config.greyscale) ? 1 : 0 );
+    state.captureWidget->enableFITSCapture (( !OA_ISBAYER( format ) ||
+        ( OA_ISBAYER8( format ) && config.demosaic &&
+        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
+    state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
+        ( OA_ISBAYER( format ) && config.demosaic &&
+        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
   }
 }
 

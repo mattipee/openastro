@@ -31,7 +31,7 @@
 
 
 static void
-_smoothHueRGGB8 ( void* source, void* target, int xSize, int ySize )
+_smoothHueRGGB8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY, tRowSize;
   unsigned char* s;
@@ -189,7 +189,7 @@ _smoothHueRGGB8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_smoothHueBGGR8 ( void* source, void* target, int xSize, int ySize )
+_smoothHueBGGR8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY, tRowSize;
   unsigned char* s;
@@ -344,7 +344,7 @@ _smoothHueBGGR8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_smoothHueGRBG8 ( void* source, void* target, int xSize, int ySize )
+_smoothHueGRBG8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY, tRowSize;
   unsigned char* s;
@@ -500,7 +500,7 @@ _smoothHueGRBG8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_smoothHueGBRG8 ( void* source, void* target, int xSize, int ySize )
+_smoothHueGBRG8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY, tRowSize;
   unsigned char* s;
@@ -657,7 +657,7 @@ _smoothHueGBRG8 ( void* source, void* target, int xSize, int ySize )
 
 
 void
-oadSmoothHue ( void* source, void* target, int xSize, int ySize,
+oadSmoothHue ( const void* source, void* target, int xSize, int ySize,
     int bitDepth, int format )
 {
   // FIX ME

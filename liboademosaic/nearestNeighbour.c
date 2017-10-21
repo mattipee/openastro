@@ -31,7 +31,7 @@
 
 
 static void
-_nnRGGB8 ( void* source, void* target, int xSize, int ySize )
+_nnRGGB8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col;
   unsigned char* s;
@@ -83,7 +83,7 @@ _nnRGGB8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_nnBGGR8 ( void* source, void* target, int xSize, int ySize )
+_nnBGGR8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col;
   unsigned char* s;
@@ -135,7 +135,7 @@ _nnBGGR8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_nnGRBG8 ( void* source, void* target, int xSize, int ySize )
+_nnGRBG8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col;
   unsigned char* s;
@@ -187,7 +187,7 @@ _nnGRBG8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_nnGBRG8 ( void* source, void* target, int xSize, int ySize )
+_nnGBRG8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col;
   unsigned char* s;
@@ -239,7 +239,7 @@ _nnGBRG8 ( void* source, void* target, int xSize, int ySize )
 
 
 void
-oadNearestNeighbour ( void* source, void* target, int xSize, int ySize,
+oadNearestNeighbour ( const void* source, void* target, int xSize, int ySize,
     int bitDepth, int format )
 {
   // FIX ME

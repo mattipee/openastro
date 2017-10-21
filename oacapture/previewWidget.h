@@ -38,10 +38,12 @@ extern "C" {
 #include <pthread.h>
 
 #include <openastro/camera.h>
+#include <openastro/demosaic.h>
+#include <openastro/video.h>
 }
 
 #include "configuration.h"
-
+#include "imageBuffer.h"
 
 class PreviewWidget : public QFrame
 {
@@ -88,6 +90,8 @@ class PreviewWidget : public QFrame
     void		frameWriteFailed ( void );
 
   private:
+    ImageBuffer previewBuffer;
+    ImageBuffer writeBuffer;
     QImage		image;
     int			currentZoom;
     int			currentZoomX;
@@ -109,10 +113,7 @@ class PreviewWidget : public QFrame
     int			flipX;
     int			flipY;
     int			demosaic;
-    void*		previewImageBuffer[2];
-    int			previewBufferLength;
-    void*		writeImageBuffer[2];
-    int			writeBufferLength;
+
     int                 expectedSize;
     int                 screenUpdatesEnabled;
     int                 savedXSize;
@@ -130,13 +131,6 @@ class PreviewWidget : public QFrame
     int			manualStop;
     int			focusScore;
 
-    void		processFlip ( void*, int, int );
-    void		processFlip8Bit ( uint8_t*, int );
-    void		processFlip16Bit ( uint8_t*, int );
-    void		processFlip24BitColour ( uint8_t*, int );
-    void		convert16To8Bit ( void*, int, int );
-    void		convert10To8Bit ( void*, int, int );
-    int 		convert10To16Bit ( void*, int, int );
     void		mousePressEvent ( QMouseEvent* );
     void		mouseMoveEvent ( QMouseEvent* );
     void		mouseReleaseEvent ( QMouseEvent* );

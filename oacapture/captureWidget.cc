@@ -516,9 +516,21 @@ CaptureWidget::doStartRecording ( int autorunFlag )
   }
 
   format = state.camera->videoFramePixelFormat();
+
+  // TODO TODO
+  // We shouldn't have to calculate pixel formats here
+  // There is logic in previewWidget.cc when we actually compute
+  // the output frame that determines the format. There is also a
+  // forced downsample to 8-bit for oademosaic().
+  // Until that's communicated in some other way, ensure we do the
+  // same here...
   if ( OA_ISBAYER ( format ) && config.demosaicOutput ) {
-    format = OA_DEMOSAIC_FMT ( format );
+    format = OA_PIX_FMT_RGB24;//OA_DEMOSAIC_FMT ( format );
   }
+  if ( config.greyscale ) {
+    format = OA_GREYSCALE_FMT ( format );
+  }
+
 
   if ( config.queryGPSForEachCapture && state.timer && state.timer->hasGPS()) {
     if ( state.timer->readGPS ( &state.latitude, &state.longitude,

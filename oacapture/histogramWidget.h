@@ -40,7 +40,7 @@ class HistogramWidget : public QWidget
   public:
     			HistogramWidget();
     			~HistogramWidget();
-    void		process ( void*, int, int );
+    void		process ( const void*, int, int );
     void		updateLayout();
     void		resetStats();
     void		stopStats();

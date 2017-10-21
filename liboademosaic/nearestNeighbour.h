@@ -27,6 +27,6 @@
 #ifndef OPENASTRO_DEMOSAIC_NN_H
 #define OPENASTRO_DEMOSAIC_NN_H
 
-extern void	oadNearestNeighbour ( void*, void*, int, int, int, int );
+extern void	oadNearestNeighbour ( const void*, void*, int, int, int, int );
 
 #endif	/* OPENASTRO_DEMOSAIC_NN_H */

@@ -34,7 +34,7 @@
 
 
 int
-oademosaic ( void* source, void* target, int xSize, int ySize, int bitDepth,
+oademosaic ( const void* source, void* target, int xSize, int ySize, int bitDepth,
     int format, int method )
 {
   switch ( method ) {

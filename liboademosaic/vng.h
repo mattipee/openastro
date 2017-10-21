@@ -27,6 +27,6 @@
 #ifndef OPENASTRO_DEMOSAIC_VNG_H
 #define OPENASTRO_DEMOSAIC_VNG_H
 
-extern void	oadVNG ( void*, void*, int, int, int, int );
+extern void	oadVNG ( const void*, void*, int, int, int, int );
 
 #endif	/* OPENASTRO_DEMOSAIC_VNG_H */

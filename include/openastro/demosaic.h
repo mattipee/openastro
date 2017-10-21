@@ -40,7 +40,7 @@
 #define	OA_DEMOSAIC_VNG			4
 #define OA_DEMOSAIC_LAST_P1		( OA_DEMOSAIC_VNG + 1 )
 
-extern int		oademosaic ( void*, void*, int, int, int, int, int );
+extern int		oademosaic ( const void*, void*, int, int, int, int, int );
 extern const char*	oademosaicMethodName ( int );
 
 #endif	/* OPENASTRO_DEMOSAIC_H */

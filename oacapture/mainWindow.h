@@ -156,6 +156,7 @@ class MainWindow : public QMainWindow
     QAction*		flipX;
     QAction*		flipY;
     QAction*		demosaicOpt;
+    QAction*		greyscaleOpt;
     QAction*		hideControls;
     QAction*		general;
     QAction*		capture;
@@ -224,6 +225,7 @@ class MainWindow : public QMainWindow
     void		enableFlipX ( void );
     void		enableFlipY ( void );
     void		enableDemosaic ( void );
+    void		enableGreyscale ( void );
     void		aboutDialog ( void );
     void		doGeneralSettings ( void );
     void		doCaptureSettings ( void );

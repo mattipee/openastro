@@ -69,7 +69,7 @@
     (( x == OA_PIX_FMT_GREY8 ) || ( x == OA_PIX_FMT_GREY16BE ) || \
     ( x == OA_PIX_FMT_GREY16LE ))
 
-#define OA_ISLITTE_ENDIAN(x) \
+#define OA_ISLITTLE_ENDIAN(x) \
     (( x == OA_PIX_FMT_BGGR16LE ) || ( x == OA_PIX_FMT_RGGB16LE ) || \
     ( x == OA_PIX_FMT_GBRG16LE ) || ( x == OA_PIX_FMT_GRBG16LE ) || \
     ( x == OA_PIX_FMT_GREY16LE ))
@@ -125,5 +125,8 @@
   (( x == OA_PIX_FMT_BGGR16BE ) || ( x == OA_PIX_FMT_RGGB16BE ) || \
   ( x == OA_PIX_FMT_GBRG16BE ) || ( x == OA_PIX_FMT_GRBG16BE )) \
   ?  OA_PIX_FMT_RGB48BE : 0 )
+
+#define OA_GREYSCALE_FMT(x) \
+  ( OA_BYTES_PER_PIXEL(x) == 1 ? OA_PIX_FMT_GREY8 : OA_PIX_FMT_GREY16LE )
 
 #endif	/* OPENASTRO_CAMERA_FORMATS_H */

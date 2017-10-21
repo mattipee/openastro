@@ -40,7 +40,7 @@ static void _fetchPixels ( unsigned char*, int, unsigned char* );
 
 
 static void
-_vng8 ( void* source, void* target, int xSize, int ySize, int format )
+_vng8 ( const void* source, void* target, int xSize, int ySize, int format )
 {
   int i, row, col, lastX, lastY, numGradients;
   int doingRed = 0, doingBlue = 0, redRow = 0;
@@ -338,7 +338,7 @@ _vng8 ( void* source, void* target, int xSize, int ySize, int format )
 
 
 void
-oadVNG ( void* source, void* target, int xSize, int ySize,
+oadVNG ( const void* source, void* target, int xSize, int ySize,
     int bitDepth, int format )
 {
   // FIX ME

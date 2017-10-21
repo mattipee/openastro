@@ -31,7 +31,7 @@
 
 
 static void
-_bilinearRGGB8 ( void* source, void* target, int xSize, int ySize )
+_bilinearRGGB8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY;
   unsigned char* s;
@@ -87,7 +87,7 @@ _bilinearRGGB8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_bilinearBGGR8 ( void* source, void* target, int xSize, int ySize )
+_bilinearBGGR8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY;
   unsigned char* s;
@@ -143,7 +143,7 @@ _bilinearBGGR8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_bilinearGRBG8 ( void* source, void* target, int xSize, int ySize )
+_bilinearGRBG8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY;
   unsigned char* s;
@@ -199,7 +199,7 @@ _bilinearGRBG8 ( void* source, void* target, int xSize, int ySize )
 
 
 static void
-_bilinearGBRG8 ( void* source, void* target, int xSize, int ySize )
+_bilinearGBRG8 ( const void* source, void* target, int xSize, int ySize )
 {
   int row, col, lastX, lastY;
   unsigned char* s;
@@ -255,7 +255,7 @@ _bilinearGBRG8 ( void* source, void* target, int xSize, int ySize )
 
 
 void
-oadBilinear ( void* source, void* target, int xSize, int ySize,
+oadBilinear ( const void* source, void* target, int xSize, int ySize,
     int bitDepth, int format )
 {
   // FIX ME

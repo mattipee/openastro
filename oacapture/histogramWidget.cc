@@ -66,7 +66,7 @@ HistogramWidget::~HistogramWidget()
 
 
 void
-HistogramWidget::process ( void* imageData, int length, int format )
+HistogramWidget::process ( const void* imageData, int length, int format )
 {
   int maxCount = 1;
   int minIntensity = 0xffff;
