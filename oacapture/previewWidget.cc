@@ -598,7 +598,16 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
 
     if ( state->histogramOn ) {
       // This call should be thread-safe
-      // TODO coloured histogram for demosaicked images
+
+      // If recording, output image will already have been modified
+      // demosaic() will return without modification if not a bayer format
+      if ( config.demosaicOutput ) {
+        self->writeBuffer.demosaic(cfaPattern, config.demosaicMethod);
+      }
+      if (config.greyscale) {
+        self->writeBuffer.greyscale();
+      }
+
       state->histogramWidget->process ( self->writeBuffer.read_buffer(), self->writeBuffer.frameLength(),
           self->writeBuffer.getPixelFormat() );
       doHistogram = 1;
