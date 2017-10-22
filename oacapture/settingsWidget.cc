@@ -41,6 +41,7 @@
 #include "autorunSettings.h"
 #include "histogramSettings.h"
 #include "demosaicSettings.h"
+#include "boostSettings.h"
 #include "fitsSettings.h"
 #include "timerSettings.h"
 
@@ -58,6 +59,7 @@ SettingsWidget::SettingsWidget()
   autorun = new AutorunSettings ( this );
   histogram = new HistogramSettings ( this );
   demosaic = new DemosaicSettings ( this );
+  boost = new BoostSettings ( this );
   fits = new FITSSettings ( this );
   timer = new TimerSettings ( this );
   vbox = new QVBoxLayout ( this );
@@ -84,6 +86,8 @@ SettingsWidget::SettingsWidget()
       QIcon ( ":/qt-icons/barchart.png" ), tr ( "Histogram" ));
   state.demosaicSettingsIndex = tabSet->addTab ( demosaic,
       QIcon ( ":/qt-icons/mosaic.png" ), tr ( "Demosaic" ));
+  state.boostSettingsIndex = tabSet->addTab ( boost,
+      QIcon ( ":/qt-icons/wand.png" ), tr ( "Boost" ));
   state.fitsSettingsIndex = tabSet->addTab ( fits,
       QIcon ( ":/qt-icons/fits.png" ), tr ( "FITS/SER Metadata" ));
   state.timerSettingsIndex = tabSet->addTab ( timer,
@@ -137,6 +141,7 @@ SettingsWidget::storeSettings ( void )
   autorun->storeSettings();
   histogram->storeSettings();
   demosaic->storeSettings();
+  boost->storeSettings();
   fits->storeSettings();
   timer->storeSettings();
   state.mainWindow->writeConfig();

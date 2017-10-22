@@ -452,6 +452,13 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
         self->previewBuffer.greyscale(OA_PIX_FMT_GREY8);
       }
 
+      // Boost preview image
+      if ( config.boost.enable ) {
+        self->previewBuffer.boost(config.boost.stretch,
+            config.boost.multiply, config.boost.algorithm );
+      }
+
+      // Show focus aid
       if ( config.showFocusAid ) {
         int fmt = OA_PIX_FMT_RGB24; // TODO check... ever RGB48?
 
@@ -465,8 +472,8 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
 
       if ( self->previewBuffer.is8bit() ) {
         newImage = new QImage (( const uint8_t* ) self->previewBuffer.read_buffer(),
-            config.imageSizeX, config.imageSizeY, config.imageSizeX,
-            QImage::Format_Indexed8 );
+            self->previewBuffer.width(), self->previewBuffer.height(),
+            self->previewBuffer.width(), QImage::Format_Indexed8 );
 
         newImage->setColorTable(( OA_PIX_FMT_GREY8 == self->previewBuffer.getPixelFormat() &&
                                   config.colourise ) ? self->falseColourTable
@@ -477,8 +484,8 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
         // right hand edge of the image when the X dimension is an odd
         // number of pixels
         newImage = new QImage (( const uint8_t* ) self->previewBuffer.read_buffer(),
-            config.imageSizeX, config.imageSizeY, config.imageSizeX * 3,
-            QImage::Format_RGB888 );
+            self->previewBuffer.width(), self->previewBuffer.height(),
+            self->previewBuffer.width() * 3, QImage::Format_RGB888 );
         if ( OA_PIX_FMT_BGR24 == self->previewBuffer.getPixelFormat() ) {
           swappedImage = new QImage ( newImage->rgbSwapped());
         } else {
@@ -492,7 +499,8 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
         self->recalculateDimensions ( zoomFactor );
       }
 
-      if ( self->currentZoom != 100 ) {
+      if ( self->currentZoom != 100 || self->previewBuffer.width() != config.imageSizeX
+                                    || self->previewBuffer.height() != config.imageSizeY ) {
         QImage scaledImage = swappedImage->scaled ( self->currentZoomX,
           self->currentZoomY );
 

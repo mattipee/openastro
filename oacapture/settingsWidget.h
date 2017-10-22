@@ -42,6 +42,7 @@
 #include "autorunSettings.h"
 #include "histogramSettings.h"
 #include "demosaicSettings.h"
+#include "boostSettings.h"
 #include "fitsSettings.h"
 #include "timerSettings.h"
 
@@ -75,6 +76,7 @@ class SettingsWidget : public QWidget
     AutorunSettings*	autorun;
     HistogramSettings*	histogram;
     DemosaicSettings*	demosaic;
+    BoostSettings* boost;
     FITSSettings*	fits;
     TimerSettings*	timer;
     QVBoxLayout*	vbox;

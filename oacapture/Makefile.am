@@ -48,6 +48,7 @@ oacapture_SOURCES = autorunSettings.cc camera.cc cameraSettings.cc \
   settingsWidget.cc targets.cc zoomWidget.cc advancedSettings.cc \
   outputFFMPEG.cc outputMOV.cc outputDIB.cc focusOverlay.cc timer.cc \
   fitsSettings.cc timerSettings.cc outputRAW.cc imageBuffer.cc \
+  boostSettings.cc \
   moc_autorunSettings.cc moc_camera.cc moc_cameraSettings.cc \
   moc_cameraWidget.cc moc_captureSettings.cc moc_captureWidget.cc \
   moc_controlWidget.cc moc_filterSettings.cc \
@@ -55,7 +56,7 @@ oacapture_SOURCES = autorunSettings.cc camera.cc cameraSettings.cc \
   moc_previewWidget.cc moc_profileSettings.cc moc_settingsWidget.cc \
   moc_zoomWidget.cc moc_advancedSettings.cc moc_focusOverlay.cc \
   moc_fitsSettings.cc moc_timerSettings.cc moc_demosaicSettings.cc \
-  moc_histogramSettings.cc \
+  moc_histogramSettings.cc moc_boostSettings.cc \
   qrc_oacapture.cc
 
 oacapture_LDADD = \

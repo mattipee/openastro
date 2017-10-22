@@ -101,6 +101,17 @@ typedef struct
   int			flipY;
   int			demosaic;
   int			greyscale;
+  struct boost {
+    enum { MUL_X1 = 1, MUL_X2 = 2, MUL_X4 = 4, MUL_X8 = 8, MUL_MAX};
+    enum { ALGO_NONE,
+           ALGO_BIN2X2, ALGO_BIN3X3, ALGO_BIN4X4,
+           ALGO_AVG2X2, ALGO_AVG3X3, ALGO_AVG4X4,
+           ALGO_CUSTOM1 = 254, ALGO_CUSTOM2 = 255};
+    int         enable;
+    int         stretch;
+    int         multiply;
+    int         algorithm;
+  }	boost;
 
   // camera config
   int			sixteenBit;

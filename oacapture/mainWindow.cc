@@ -296,6 +296,10 @@ MainWindow::readConfig ( void )
     config.flipY = 0;
     config.demosaic = 0;
     config.greyscale = 0;
+    config.boost.enable = 0;
+    config.boost.stretch = 0;
+    config.boost.multiply = CONFIG::boost::MUL_X1;
+    config.boost.algorithm = CONFIG::boost::ALGO_NONE;
 
     config.sixteenBit = 0;
     config.binning2x2 = 0;
@@ -411,6 +415,10 @@ MainWindow::readConfig ( void )
     config.flipY = settings.value ( "options/flipY", 0 ).toInt();
     config.demosaic = settings.value ( "options/demosaic", 0 ).toInt();
     config.greyscale = settings.value ( "options/greyscale", 0 ).toInt();
+    config.boost.enable = settings.value ( "options/boost/enable", 0 ).toInt();
+    config.boost.stretch = settings.value ( "options/boost/stretch", 0 ).toInt();
+    config.boost.multiply = settings.value ( "options/boost/multiply", 0 ).toInt();
+    config.boost.algorithm = settings.value ( "options/boost/algorithm", 0 ).toInt();
 
     config.sixteenBit = settings.value ( "camera/sixteenBit", 0 ).toInt();
     config.binning2x2 = settings.value ( "camera/binning2x2", 0 ).toInt();
@@ -955,6 +963,10 @@ MainWindow::writeConfig ( void )
   settings.setValue ( "options/flipY", config.flipY );
   settings.setValue ( "options/demosaic", config.demosaic );
   settings.setValue ( "options/greyscale", config.greyscale );
+  settings.setValue ( "options/boost/enable", config.boost.enable );
+  settings.setValue ( "options/boost/stretch", config.boost.stretch );
+  settings.setValue ( "options/boost/multiply", config.boost.multiply );
+  settings.setValue ( "options/boost/algorithm", config.boost.algorithm );
 
   settings.setValue ( "camera/sixteenBit", config.sixteenBit );
   settings.setValue ( "camera/binning2x2", config.binning2x2 );
@@ -1351,6 +1363,12 @@ MainWindow::createMenus ( void )
   greyscaleOpt->setChecked ( config.greyscale );
   connect ( greyscaleOpt, SIGNAL( changed()), this, SLOT( enableGreyscale()));
 
+  boostOpt = new QAction ( QIcon ( ":/qt-icons/wand.png" ),
+      tr ( "Boost" ), this );
+  boostOpt->setCheckable ( true );
+  boostOpt->setChecked ( config.boost.enable );
+  connect ( boostOpt, SIGNAL( changed()), this, SLOT( enableBoost()));
+
   
   optionsMenu = menuBar()->addMenu ( tr ( "&Options" ));
   optionsMenu->addAction ( histogramOpt );
@@ -1375,6 +1393,7 @@ MainWindow::createMenus ( void )
   optionsMenu->addAction ( flipY );
   optionsMenu->addAction ( demosaicOpt );
   optionsMenu->addAction ( greyscaleOpt );
+  optionsMenu->addAction ( boostOpt );
 
   // settings menu
 
@@ -1407,6 +1426,11 @@ MainWindow::createMenus ( void )
       tr ( "Demosaic" ), this );
   demosaic->setStatusTip ( tr ( "Configuration for demosaicking" ));
   connect ( demosaic, SIGNAL( triggered()), this, SLOT( doDemosaicSettings()));
+
+  boost = new QAction ( QIcon ( ":/qt-icons/wand.png" ),
+      tr ( "Boost" ), this );
+  boost->setStatusTip ( tr ( "Configuration for preview boost" ));
+  connect ( boost, SIGNAL( triggered()), this, SLOT( doBoostSettings()));
 
   fits = new QAction ( QIcon ( ":/qt-icons/fits.png" ),
       tr ( "FITS/SER Metadata" ), this );
@@ -1441,6 +1465,7 @@ MainWindow::createMenus ( void )
   settingsMenu->addAction ( profiles );
   settingsMenu->addAction ( filters );
   settingsMenu->addAction ( demosaic );
+  settingsMenu->addAction ( boost );
   settingsMenu->addAction ( fits );
   settingsMenu->addAction ( autorun );
   settingsMenu->addAction ( histogram );
@@ -2154,6 +2179,13 @@ MainWindow::enableGreyscale ( void )
 
 
 void
+MainWindow::enableBoost ( void )
+{
+  config.boost.enable = boostOpt->isChecked() ? 1 : 0;
+}
+
+
+void
 MainWindow::aboutDialog ( void )
 {
   QMessageBox::about ( this, tr ( "About " APPLICATION_NAME ),
@@ -2252,6 +2284,15 @@ MainWindow::doDemosaicSettings ( void )
 {
   createSettingsWidget();
   state.settingsWidget->setActiveTab ( state.demosaicSettingsIndex );
+  state.settingsWidget->show();
+}
+
+
+void
+MainWindow::doBoostSettings ( void )
+{
+  createSettingsWidget();
+  state.settingsWidget->setActiveTab ( state.boostSettingsIndex );
   state.settingsWidget->show();
 }
 

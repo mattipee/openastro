@@ -29,38 +29,51 @@
 #include <stdint.h>
 class ImageBuffer
 {
-    public:
-        ImageBuffer();
-        ~ImageBuffer();
-        int getPixelFormat() const { return pixelFormat; }
-        bool is8bit() const;
-        const void* read_buffer() const { return current; }
-        void* write_buffer();
-        int frameLength() const { return x * y * depth / 8; }
-        void reset(void* img, int fmt, int width, int height);
-        void convert(int newPixelFormat);
-        void ensure8BitGreyOrRaw();
-        void ensure24BitRGB();
-        void demosaic(int pattern, int method);
-        void greyscale(int targetPixelFormat = -1);
-        void flip(bool flipX, bool flipY);
-    private:
-        bool reserve(int newBufferLength);
-        void* nextBuffer();
+public:
+  ImageBuffer();
+  ~ImageBuffer();
 
-        static void processFlip8Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
-        static void processFlip16Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
-        static void processFlip24BitColour(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
+  //ImageBuffer clone() const;
+
+  void reset(void* img, int fmt, int width, int height);
 
 
-        const void* imageData;
-        int         pixelFormat;
-        int         x;
-        int         y;
-        int         depth;
-        bool        isDemosaicked; 
-        const void* current;
-        int         bufferLength;
-        void*		buffer[2];
-        int			nBuffer;
+  int getPixelFormat() const { return pixelFormat; }
+  bool is8bit() const;
+  int width() const { return x; }
+  int height() const { return y; }
+  int frameLength() const { return length; }
+
+  const void* read_buffer() const { return current; }
+  void* write_buffer();
+
+  void ensure8BitGreyOrRaw();
+  void ensure24BitRGB();
+  void convert(int newPixelFormat);
+
+  void demosaic(int pattern, int method);
+  void greyscale(int targetPixelFormat = -1);
+  void flip(bool flipX, bool flipY);
+
+  void boost(bool stretch, int multiply, int algorithm );
+private:
+  bool reserve(int newBufferLength);
+  void* nextBuffer();
+
+  static void processFlip8Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
+  static void processFlip16Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
+  static void processFlip24BitColour(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
+
+
+  const void* imageData;
+  const void* current;
+  void*		  buffer[2];
+  int		  nBuffer;
+  int         bufferLength;
+
+  int         pixelFormat;
+  int         x;
+  int         y;
+  int         length;
+  bool        isDemosaicked; 
 };

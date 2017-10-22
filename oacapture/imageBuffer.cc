@@ -46,9 +46,10 @@ extern "C" {
 
 
 ImageBuffer::ImageBuffer()
-    : imageData(0), pixelFormat(-1), x(0), y(0), depth(0),
-    isDemosaicked(false), current(0), bufferLength(0), nBuffer(-1)
+  : imageData(0), pixelFormat(-1), x(0), y(0), length(0),
+    current(0), bufferLength(0), nBuffer(-1)
 {}
+
 
 ImageBuffer::~ImageBuffer()
 {
@@ -56,18 +57,26 @@ ImageBuffer::~ImageBuffer()
         free ( buffer[0] );
         free ( buffer[1] );
     }
-} 
-bool ImageBuffer::is8bit() const { return 1 == OA_BYTES_PER_PIXEL(pixelFormat); }
+}
+
+
+bool ImageBuffer::is8bit() const
+{
+    return 1 == OA_BYTES_PER_PIXEL(pixelFormat);
+}
+
 
 void* ImageBuffer::write_buffer() {
     if (current != imageData)
         return const_cast<void*>(current);
 
     void* next = nextBuffer();
-    memcpy(next, current, x*y*depth/8);
+    memcpy(next, current, length);
     current = next;
     return next;
 }
+
+
 void ImageBuffer::reset(void* img, int fmt, int width, int height)
 {
     imageData = img;
@@ -75,10 +84,11 @@ void ImageBuffer::reset(void* img, int fmt, int width, int height)
     pixelFormat = fmt;
     x = width;
     y = height;
-    depth = OA_BYTES_PER_PIXEL( fmt ) * 8;
-    isDemosaicked = false;
+    length = x * y * OA_BYTES_PER_PIXEL( fmt );
     reserve(x*y*6);
 } 
+
+
 bool ImageBuffer::reserve(int newBufferLength)
 {
     if ( newBufferLength > bufferLength ) {
@@ -94,11 +104,15 @@ bool ImageBuffer::reserve(int newBufferLength)
     }
     return true;
 }
+
+
 void* ImageBuffer::nextBuffer() {
     nBuffer = ( -1 == nBuffer ) ? 0 :
         !nBuffer;
     return buffer[nBuffer];
 }
+
+
 void ImageBuffer::convert(int newPixelFormat)
 {
     void* next = nextBuffer();
@@ -106,6 +120,8 @@ void ImageBuffer::convert(int newPixelFormat)
     pixelFormat = newPixelFormat;
     current = next;
 }
+
+
 void ImageBuffer::ensure24BitRGB()
 {
     if ( pixelFormat == OA_PIX_FMT_RGB24 )
@@ -118,6 +134,7 @@ void ImageBuffer::ensure24BitRGB()
     }
     qWarning() << __FUNCTION__ << " unable to convert format " << pixelFormat << " to RGB24 (48bit colour?)";
 }
+
 
 void ImageBuffer::ensure8BitGreyOrRaw()
 {
@@ -161,6 +178,8 @@ void ImageBuffer::ensure8BitGreyOrRaw()
         pixelFormat = fmt;
     }
 }
+
+
 void ImageBuffer::demosaic(int pattern, int method)
 {
     if ( !OA_ISBAYER ( pixelFormat ))
@@ -175,9 +194,10 @@ void ImageBuffer::demosaic(int pattern, int method)
     void* next = nextBuffer();
     oademosaic ( current, next, x, y, 8, pattern, method );
     pixelFormat = OA_PIX_FMT_RGB24;
+    length = x*y*3;
     current = next;
-    isDemosaicked = true;
 }
+
 
 void ImageBuffer::greyscale(int targetPixelFormat)
 {
@@ -187,6 +207,7 @@ void ImageBuffer::greyscale(int targetPixelFormat)
     void* next = nextBuffer();
     oaconvert ( current, next, x, y, pixelFormat, targetPixelFormat );
     pixelFormat = targetPixelFormat;
+    length = x*y*OA_BYTES_PER_PIXEL(targetPixelFormat);
     current = next;
 }
 
@@ -330,6 +351,7 @@ ImageBuffer::processFlip16Bit ( uint8_t* imageData, int imageSizeX, int imageSiz
   }
 }
 
+
 void
 ImageBuffer::processFlip24BitColour ( uint8_t* imageData, int imageSizeX, int imageSizeY, bool flipX, bool flipY )
 {
@@ -391,3 +413,158 @@ ImageBuffer::processFlip24BitColour ( uint8_t* imageData, int imageSizeX, int im
 }
 
 
+// Note: some of these transformations will work when applied to a
+// single buffer, rather than writing into a new one.
+// We've preallocated our buffers anyway, so I don't bother.
+// Perhaps not good for the cache, but these were written quick and
+// dirty to begin with.
+void ImageBuffer::boost( bool stretch, int multiply, int algorithm )
+{
+    // Multiply works ok on RGB24, but my binning doesn't so don't bother
+    // Restrict to GREY8 for now.
+    if (pixelFormat != OA_PIX_FMT_GREY8) {
+        convert(OA_PIX_FMT_GREY8);
+    }
+
+    // ALGORITHM
+    {
+        switch (algorithm) {
+            case CONFIG::boost::ALGO_NONE:
+                break;
+
+            case CONFIG::boost::ALGO_BIN2X2: // bin2x2
+            case CONFIG::boost::ALGO_BIN3X3: // bin3x3
+            case CONFIG::boost::ALGO_BIN4X4: // bin4x4
+            case CONFIG::boost::ALGO_AVG2X2: // avg2x2
+            case CONFIG::boost::ALGO_AVG3X3: // avg3x3
+            case CONFIG::boost::ALGO_AVG4X4: // avg4x4
+                {
+                    const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+                    uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+
+                    int bin;
+                    bool avg = false;
+                    switch (algorithm) {
+                      case CONFIG::boost::ALGO_BIN2X2: bin = 2; break;
+                      case CONFIG::boost::ALGO_BIN3X3: bin = 3; break;
+                      case CONFIG::boost::ALGO_BIN4X4: bin = 4; break;
+                      case CONFIG::boost::ALGO_AVG2X2: bin = 2; avg = true; break;
+                      case CONFIG::boost::ALGO_AVG3X3: bin = 3; avg = true; break;
+                      case CONFIG::boost::ALGO_AVG4X4: bin = 4; avg = true; break;
+                      default: bin = 1;
+                    }
+                    memset(next, 0, length*2);
+                    for (int i = 0; i < x; ++i) {
+                        for (int j = 0; j < y; ++j) {
+                            next[(j/bin)*(x/bin) + (i/bin)] += source[j*x + i];
+                        }
+                    }
+                    x = x/bin;
+                    y = y/bin;
+                    length = x*y;
+
+                    for (int i=0; i<length; ++i)
+                    {
+                        reinterpret_cast<uint8_t*>(next)[i] = avg ? next[i]/(bin*bin) : std::min(0x00ff,static_cast<int>(next[i]));
+                    }
+                    current = next;
+                }
+                break;
+
+            case CONFIG::boost::ALGO_CUSTOM1:
+                {
+                    const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+                    uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+
+                    memset(next, 0, length*2);
+                    for (int i = 0; i < x-1; ++i)
+                    {
+                        for (int j = 0; j < y-1; ++j)
+                        {
+                            uint8_t p = source[j*x + i];
+                            next[j*x + i] += p;
+                            next[j*x + i+1] += p;
+                            next[(j+1)*x + i] += p;
+                            next[(j+1)*x + (i+1)] += p;
+                        }
+                    }
+
+                    // loop through 16-bit values and convert to 8
+                    for (int i=0; i<length; ++i)
+                    {
+                        reinterpret_cast<uint8_t*>(next)[i] = next[i]/4.0;
+                    }
+                    current = next;
+                }
+                break;
+
+            case CONFIG::boost::ALGO_CUSTOM2:
+                {
+                    const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+                    uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+
+                    memset(next, 0, length*2);
+                    for (int i = 0; i < x-2; ++i)
+                    {
+                        for (int j = 0; j < y-2; ++j)
+                        {
+                            uint8_t p = source[j*x + i];
+                            next[j*x + i] += p;
+                            next[j*x + i+1] += p;
+                            next[j*x + i+2] += p;
+                            next[(j+1)*x + i] += p;
+                            next[(j+1)*x + (i+1)] += p;
+                            next[(j+1)*x + (i+2)] += p;
+                            next[(j+2)*x + i] += p;
+                            next[(j+2)*x + (i+1)] += p;
+                            next[(j+2)*x + (i+2)] += p;
+                        }
+                    }
+
+                    // loop through 16-bit values and convert to 8
+                    for (int i=0; i<length; ++i)
+                    {
+                        reinterpret_cast<uint8_t*>(next)[i] = next[i]/9.0;
+                    }
+
+                    current = next;
+                }
+                break;
+        }
+    }
+
+
+    // MULTIPLY
+    {
+        const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+        uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+        int mul = std::max(1,multiply);
+        for (int c = 0; c < length; ++c)
+        {
+            next[c] = std::min(255, source[c] * mul);
+        }
+        current = next;
+    }
+
+    // STRETCH
+    if (stretch)
+    {
+        const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+        uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+
+        uint8_t min = 255;
+        uint8_t max = 1;
+        for (int i=0; i<length; ++i)
+        {
+            if (source[i] < min) min = source[i];
+            if (source[i] > max) max = source[i];
+        }
+        //std::cerr << "strech min: " << (int)min << " max: " << (int)max << "\n"; 
+        double scale_factor = 255/max;
+        for (int i=0; i<length; ++i)
+        {
+            next[i] = source[i] * scale_factor;
+        }
+        current = next;
+    }
+}

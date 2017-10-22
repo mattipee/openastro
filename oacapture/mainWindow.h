@@ -157,6 +157,7 @@ class MainWindow : public QMainWindow
     QAction*		flipY;
     QAction*		demosaicOpt;
     QAction*		greyscaleOpt;
+    QAction*		boostOpt;
     QAction*		hideControls;
     QAction*		general;
     QAction*		capture;
@@ -164,6 +165,7 @@ class MainWindow : public QMainWindow
     QAction*		profiles;
     QAction*		filters;
     QAction*		demosaic;
+    QAction*		boost;
     QAction*		fits;
     QAction*		timer;
     QAction*		autorun;
@@ -226,6 +228,7 @@ class MainWindow : public QMainWindow
     void		enableFlipY ( void );
     void		enableDemosaic ( void );
     void		enableGreyscale ( void );
+    void		enableBoost ( void );
     void		aboutDialog ( void );
     void		doGeneralSettings ( void );
     void		doCaptureSettings ( void );
@@ -233,6 +236,7 @@ class MainWindow : public QMainWindow
     void		doProfileSettings ( void );
     void		doFilterSettings ( void );
     void		doDemosaicSettings ( void );
+    void		doBoostSettings ( void );
     void		doFITSSettings ( void );
     void		doTimerSettings ( void );
     void		doAutorunSettings ( void );
