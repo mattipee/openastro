@@ -205,11 +205,13 @@ HistogramWidget::paintEvent ( QPaintEvent* event )
     return;
   }
 
-  if ( 1 == colours && showingThreeGraphs ) {
-    // resize ( 300, 150 );
-    setFixedSize ( 300, 150 );
-    currentLayoutIsSplit = 0;
-    showingThreeGraphs = 0;
+  if ( 1 == colours ) {
+    if ( showingThreeGraphs ) {
+      // resize ( 300, 150 );
+      setFixedSize ( 300, 150 );
+      currentLayoutIsSplit = 0;
+      showingThreeGraphs = 0;
+    }
   } else {
     if ( newLayoutIsSplit != currentLayoutIsSplit ) {
       if ( !newLayoutIsSplit && showingThreeGraphs ) {
