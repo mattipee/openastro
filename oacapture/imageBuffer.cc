@@ -690,20 +690,25 @@ void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y,
 }
 
 
-struct AbsCompare { bool operator()(int8_t a, int8_t b) { return abs(a) < abs(b); } };
+struct AbsCompare {
+    // compare by absolute value
+    bool operator()(int16_t a, const int16_t b) {
+        return abs(a) < abs(b);
+    }
+};
 void ImageBuffer::adpb(int Rb)
 {
-    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4541814/
+    // ============================================================
+    // Implmentation of Adaptive Digital Pixel Binning
+    //  - see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4541814/
+    // ============================================================
 
-    // Rb is the maximum binning ratio
 
     // identify buffer for output of the entire algorithm
-    uint8_t* output = reinterpret_cast<uint8_t*>(nextBuffer());
+    uint8_t* const output = reinterpret_cast<uint8_t*>(nextBuffer());
 
     // number of pixels
-    int L = x*y;
-
-
+    const int L = x*y;
 
 
     // ============================================================
@@ -713,11 +718,12 @@ void ImageBuffer::adpb(int Rb)
     // A low-light input image consists of signal plus noise
     // This is what we have captured and are processing here
 
+
     // ------------------------------------
     // Equation 1: g(x,y) = f(x,y) + η(x,y)
     // ------------------------------------
 
-    const uint8_t* g = reinterpret_cast<const uint8_t*>(current);
+    const uint8_t* const g = reinterpret_cast<const uint8_t*>(current);
 
     
     // ======================================
@@ -726,6 +732,7 @@ void ImageBuffer::adpb(int Rb)
 
     // Calculates the optimal amplification ratio at each pixel
     // using a 3x3 average filter.
+
 
     // -----------------------------------------------------------
     // Equation 6: t(x,y) = (h3x3 * g(x,y)) / max{ h3x3 * g(x,y) }
@@ -739,7 +746,7 @@ void ImageBuffer::adpb(int Rb)
 
     // compute h3x3 * g(x,y)
     // - apply 3x3 average filter to input
-    uint8_t* h3x3_g = (uint8_t*)malloc(L);
+    uint8_t* const h3x3_g = reinterpret_cast<uint8_t*>(malloc(L));
     convolve(g, h3x3_g, x, y, h3x3, 1.0/9.0);
 
     // compute max{ h3x3 * g(x,y) }
@@ -749,12 +756,12 @@ void ImageBuffer::adpb(int Rb)
         if (h3x3_g[i] > max) max = h3x3_g[i];
 
     // iterate through all pixels
-    for (int i=0; i<x; ++i)
     for (int j=0; j<y; ++j)
+    for (int i=0; i<x; ++i)
     {
         // compute t(x,y)
         // - divide each pixel by the maximum value
-        double txy = h3x3_g[j*x+i] / max;
+        const double txy = h3x3_g[j*x+i] / max;
 
 
         // ---------------------------------------------
@@ -766,7 +773,7 @@ void ImageBuffer::adpb(int Rb)
 
         // compute r(x,y)
         // - calculate optimal binning ratio for each pixel
-        double rxy = 1 + (1 - txy) * (Rb - 1);
+        const double rxy = 1 + (1 - txy) * (Rb - 1);
 
 
         // =============================
@@ -791,47 +798,42 @@ void ImageBuffer::adpb(int Rb)
         // Equation 8: dx,y = sort{g(x, y) − g(x + i, y + j)},  for i, j = −⌊p/2⌋, …, ⌊p/2⌋
         // --------------------------------------------------------------------------------
 
-        // declare a sorted structure to hold:
-        // - the difference of each pixel from the center pixel
-        // - the position of the pixel in the original image
-        // keys are sorted according to "abs(a) < abs(b)" and may be repeated
-        // FIXME C++11 allows AbsCompare to be declared here, locally
-        typedef std::multimap<int16_t, uint8_t, ::AbsCompare> sorted_diff_vec;
-        sorted_diff_vec dxy;
-
         // current pixel value
-        uint8_t gxy = g[j*x + i];
-       
-        // generate the sorted differences from an NxN window
+        const uint8_t gxy = g[j*x + i];
+      
+        // offset pixel positions (wrap around at edges) 
         int l = left(i,x);
         int r = right(i,x);
         int u = up(j,y);
         int d = down(j,y);
 
-        dxy.insert(std::make_pair(gxy - g[u*x + l], 0));
-        dxy.insert(std::make_pair(gxy - g[u*x + i], 1));
-        dxy.insert(std::make_pair(gxy - g[u*x + r], 2));
+        // generate the sorted differences from an NxN window
+        // - each value is the difference of each pixel from the center pixel
+        // it will then be sorted according to "abs(a) < abs(b)"
+        // FIXME C++11 allows AbsCompare to be declared here, locally
+        int16_t dxy[9] = {
+            gxy - g[u*x + l],
+            gxy - g[u*x + i],
+            gxy - g[u*x + r],
 
-        dxy.insert(std::make_pair(gxy - g[j*x + l], 3));
-        dxy.insert(std::make_pair(gxy - g[j*x + i], 4));
-        dxy.insert(std::make_pair(gxy - g[j*x + r], 5));
+            gxy - g[j*x + l],
+            gxy - g[j*x + i],
+            gxy - g[j*x + r],
 
-        dxy.insert(std::make_pair(gxy - g[d*x + l], 6));
-        dxy.insert(std::make_pair(gxy - g[d*x + i], 7));
-        dxy.insert(std::make_pair(gxy - g[d*x + r], 8));
-        
+            gxy - g[d*x + l],
+            gxy - g[d*x + i],
+            gxy - g[d*x + r],
+        };
+        std::sort(dxy, dxy+9, AbsCompare());
+
 
         // ----------------------------
         // Equation 10: bc(x,y)=rTssx,y
         // ----------------------------
 
-        // result of context-adaptive binning is a weightes sum of similar pixels
+        // result of context-adaptive binning is a weighted sum of similar pixels
 
-        // compute weighting vector rs
-        // - actually unused, here for clarity
-        double rs[9];
-
-        // declare accumulator for weighted sums
+        // declare accumulators for weighted sums
         double bcxy = 0;
         double buxy = 0;
 
@@ -839,16 +841,14 @@ void ImageBuffer::adpb(int Rb)
         double s_bar = 0;
 
         // pixel order q represents each sorted pixel in the 3x3 window
-        int q = 1;
-        for (sorted_diff_vec::const_iterator iter = dxy.begin();
-                iter != dxy.end(); ++iter, ++q)
+        for (int q=1; q<=9; ++q)
         {
-            int d = iter->first;
-            uint8_t pos = iter->second;
-            int s = gxy - d;
+            // original pixel value
+            const uint8_t s = gxy - dxy[q-1];
            
             // accumulate for mean
             s_bar += s/9.0;
+
 
             // -----------------------------------------------------
             // Equation 11: rs(q)=⎧ 1,             r(x,y)−(q−1)>1
@@ -857,18 +857,15 @@ void ImageBuffer::adpb(int Rb)
             // -----------------------------------------------------
 
             // calculate weighting for each pixel in sorted vector
+            // accumulate the weighted sum
             if (rxy - (q - 1) > 1) {
-                rs[pos] = 1;
+                bcxy += s;
             } else if (rxy - (q - 1) > 0) {
-                rs[pos] = rxy - (q - 1);
+                bcxy += s * (rxy - (q - 1));
             } else {
-                rs[pos] = 0;
+                // pixel does not contribute
             }
 
-            // accumulate the weighted sum
-            bcxy += rs[pos] * s;
-
-            
 
             // ---------------------------------------------------
             // Equation 17: ru(q)={ 1,                   if q=1
@@ -877,8 +874,8 @@ void ImageBuffer::adpb(int Rb)
 
             // rxy is the optimal binning ratio for this pixel
             // center pixel has weight 1
-            double ru = (rxy-1.0)/8.0;
-            buxy += (pos == 4) ? s : (ru * s);
+            const double ru = (rxy-1.0)/8.0;
+            buxy += (q == 1) ? s : (ru * s);
 
         }
 
@@ -900,10 +897,10 @@ void ImageBuffer::adpb(int Rb)
 
         // calculate gamma
         // - abs() was giving me integers, hence the ternary below
-        double gamma = ((s_bar < gxy) ? (gxy - s_bar) : (s_bar - gxy))/16.0;//abs(s_bar - gxy)/1.0;
+        const double gamma = ((s_bar < gxy) ? (gxy - s_bar) : (s_bar - gxy))/16.0;//abs(s_bar - gxy)/1.0;
         
         // combine the result of adaptive binning and uniform binning as a function of gamma 
-        double bxy = ((1.0-gamma) * bcxy) + (gamma * buxy);
+        const double bxy = ((1.0-gamma) * bcxy) + (gamma * buxy);
 
 
         // =======================================
@@ -912,21 +909,25 @@ void ImageBuffer::adpb(int Rb)
 
         // Combine the amplified image (b) and the input (g) in order to prevent saturation
 
+
         // ----------------------------------------------------
         // Equation 21: w(x,y)= (1/μ){b(x,y)/(Rb−1) + g(x,y)/2}
         // ----------------------------------------------------
 
         // Compute the blending coefficient
         // - μ is the maximum bit depth of the image for normalisation
-        double mu = 255;
-        double wxy = (1/mu) * (( bxy / (Rb - 1.0) ) + ( gxy / 2.0 ));
+        const double mu = 255;
+        const double wxy = (1/mu) * (( bxy / (Rb - 1.0) ) + ( gxy / 2.0 ));
+
 
         // ----------------------------------------------------
         // Equation 20: f^(x,y)=(1−w(x,y))⋅b(x,y)+w(x,y)⋅g(x,y)
         // ----------------------------------------------------
 
         // compute anti-saturation blend of pixels
-        double fxy = (1.0-wxy)*(bxy) + wxy*(gxy);
+        const double fxy = (1.0 - wxy)*(bxy) + wxy*(gxy);
+
+
 
         // write pixel to output image
         output[j*x + i] = std::max(0.0,std::min(255.0, 1.2*fxy));
