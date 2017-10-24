@@ -692,7 +692,7 @@ void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y,
 
 
 /**
- * Adaptive Digital Binning
+ * Adaptive Digital Pixel Binning
  * https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4541814/
  *
  * G input image
