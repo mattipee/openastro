@@ -695,31 +695,31 @@ void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y,
  * Adaptive Digital Pixel Binning
  * https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4541814/
  *
- * G input image
- * F output image
- * W image width (eg 640)
- * H image height (eg 480)
- * Rb maximum binning ratio (eg 4)
- * lambda noise suppression sensitivity (eg 16.0, 1.0)
- * mu pixel depth?? (eg 255)
+ * G       input image
+ * F       output image
+ * W       image width (eg 640)
+ * H       image height (eg 480)
+ * Rb      maximum binning ratio (eg 4)
+ * lambda  noise suppression sensitivity (eg 16.0, 1.0)
+ * mu      pixel depth?? (eg 255)
  *
  * #include <algorithm>; // std::min, std::max, std::sort
  */
 struct AbsCompare {
-  bool operator()(int16_t a,int16_t b) {return abs(a)<abs(b);} // compare by absolute value
+  bool operator()(int16_t a,int16_t b){return abs(a)<abs(b);}  // compare by absolute value
 };
 
 void ImageBuffer::adpb(const uint8_t* G, uint8_t* F, int W, int H, int Rb, double lambda, int mu)
 {
   double* const HG=new double[W*H];                            // allocate 3x3 average buffer
   double max=0;                                                // find max average value
-  for(int y=0;y<H;++y) for(int x=0;x<W;++x){                   // iterate all pixels
+  for(int y=0;y<H;++y)for(int x=0;x<W;++x){                    // iterate all pixels
     const int L=(x-1+W)%W,R=(x+1+W)%W,U=(y-1+H)%H,D=(y+1+H)%H; // wrap at edges
     const double avg=(G[U*W+L]+G[U*W+x]+G[U*W+R]+              // convolve 3x3 average kernel
                       G[y*W+L]+G[y*W+x]+G[y*W+R]+              // ...
                       G[D*W+L]+G[D*W+x]+G[D*W+R])/9.0;         // ...
-    if (avg>max) max=avg;HG[y*W+x]=avg;}                       // find max and store average
-  for(int y=0;y<H;++y) for(int x=0;x<W;++x){                   // iterate all pixels
+    HG[y*W+x]=avg;if(avg>max)max=avg;}                         // store average and find max
+  for(int y=0;y<H;++y)for(int x=0;x<W;++x){                    // iterate all pixels
     const double hg=HG[y*W+x],t=hg/max,                        // average/fractional pixel values
                  r=1+(1-t)*(Rb-1);                             // optimal binning ratio
     const uint8_t g=G[y*W+x];                                  // center pixel value
@@ -731,13 +731,13 @@ void ImageBuffer::adpb(const uint8_t* G, uint8_t* F, int W, int H, int Rb, doubl
     double bc=0,bu=0;                                          // accumulators for convolution
     for(int q=1;q<=9;++q){                                     // iterate sorted differences
       const uint8_t s=g-d[q-1];                                // original pixel value
-      const double contrib = r-(q-1);                          // calculate contribution
+      const double contrib=r-(q-1);                            // calculate contribution
       bc+=contrib>1?s:contrib>0?(s*contrib):0;                 // convolve context kernel
-      bu+=(q==1)?s:(((r-1.0)/8.0)*s);}                         // convolve uniform kernel
+      bu+=q==1?s:((r-1.0)/8.0)*s;}                             // convolve uniform kernel
     const double gamma=abs(hg-g)/lambda,                       // combination coefficient
-                 b=((1.0-gamma)*bc)+(gamma*bu),                // denoised pixel value
-                 w=(1.0/mu)*((b/(Rb-1.0))+(g/2.0)),            // blending coefficient
-                 f=(1.0-w)*(b)+w*(g);                          // blend for anti-saturation
+                 b=(1.0-gamma)*bc+gamma*bu,                    // denoised pixel value
+                 w=(b/(Rb-1.0)+g/2.0)/mu,                      // blending coefficient
+                 f=(1.0-w)*b+w*g;                              // blend for anti-saturation
     F[y*W+x]=std::max(0.0,std::min(255.0,f));}                 // final pixel value
   delete[](HG);                                                // clean up
 }
