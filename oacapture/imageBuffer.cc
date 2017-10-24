@@ -460,15 +460,15 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
             break;
 
         case CONFIG::boost::ALGO_ADPB4:
-            adpb(4);
+            adpb(4, 16.0, 255);
             break;
 
         case CONFIG::boost::ALGO_ADPB6:
-            adpb(6);
+            adpb(6, 16.0, 255);
             break;
 
         case CONFIG::boost::ALGO_ADPB8:
-            adpb(8);
+            adpb(8, 16.0, 255);
             break;
 
         case CONFIG::boost::ALGO_BIN2X2: // bin2x2
@@ -696,244 +696,36 @@ struct AbsCompare {
         return abs(a) < abs(b);
     }
 };
-void ImageBuffer::adpb(int Rb)
+void ImageBuffer::adpb(const uint8_t* G, uint8_t* F, int W, int H, int Rb, double lambda, int mu)
 {
-    // ============================================================
-    // Implmentation of Adaptive Digital Pixel Binning
-    //  - see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4541814/
-    // ============================================================
-
-
-    // identify buffer for output of the entire algorithm
-    uint8_t* const output = reinterpret_cast<uint8_t*>(nextBuffer());
-
-    // number of pixels
-    const int L = x*y;
-
-
-    // ============================================================
-    // 2.1. Image Degradation Model for Low-Light Image Acquisition
-    // ============================================================
-
-    // A low-light input image consists of signal plus noise
-    // This is what we have captured and are processing here
-
-
-    // ------------------------------------
-    // Equation 1: g(x,y) = f(x,y) + η(x,y)
-    // ------------------------------------
-
-    const uint8_t* const g = reinterpret_cast<const uint8_t*>(current);
-
-    
-    // ======================================
-    // 3.1. Brightness Adaptive Binning Ratio
-    // ======================================
-
-    // Calculates the optimal amplification ratio at each pixel
-    // using a 3x3 average filter.
-
-
-    // -----------------------------------------------------------
-    // Equation 6: t(x,y) = (h3x3 * g(x,y)) / max{ h3x3 * g(x,y) }
-    // -----------------------------------------------------------
-
-    // h3x3 represents the 3 x 3 average filter
-    static const int8_t h3x3[] =
-    { 1, 1, 1,
-      1, 1, 1,
-      1, 1, 1};
-
-    // compute h3x3 * g(x,y)
-    // - apply 3x3 average filter to input
-    uint8_t* const h3x3_g = reinterpret_cast<uint8_t*>(malloc(L));
-    convolve(g, h3x3_g, x, y, h3x3, 1.0/9.0);
-
-    // compute max{ h3x3 * g(x,y) }
-    // - select the maximum value
-    double max=0;
-    for (int i=0; i<L; ++i)
-        if (h3x3_g[i] > max) max = h3x3_g[i];
-
-    // iterate through all pixels
-    for (int j=0; j<y; ++j)
-    for (int i=0; i<x; ++i)
-    {
-        // compute t(x,y)
-        // - divide each pixel by the maximum value
-        const double txy = h3x3_g[j*x+i] / max;
-
-
-        // ---------------------------------------------
-        // Equation 7: r(x,y) = 1 + (1 - t(x,y)/(Rb - 1)
-        // ---------------------------------------------
-
-        // Rb represents the maximum binning ratio
-        // - see function argument (int Rb)
-
-        // compute r(x,y)
-        // - calculate optimal binning ratio for each pixel
-        const double rxy = 1 + (1 - txy) * (Rb - 1);
-
-
-        // =============================
-        // 3.2. Context-Adaptive Binning
-        // =============================
-
-        // Calculate a weighted sum of pixels based on the relationship
-        // between each pixel and it's neighbours
-
-
-        // also...
-
-
-        // =================================
-        // 3.3. Noise-Adaptive Pixel Binning
-        // =================================
-
-        // Uniform binning is effective in a noise region.
-
-
-        // --------------------------------------------------------------------------------
-        // Equation 8: dx,y = sort{g(x, y) − g(x + i, y + j)},  for i, j = −⌊p/2⌋, …, ⌊p/2⌋
-        // --------------------------------------------------------------------------------
-
-        // current pixel value
-        const uint8_t gxy = g[j*x + i];
-      
-        // offset pixel positions (wrap around at edges) 
-        int l = left(i,x);
-        int r = right(i,x);
-        int u = up(j,y);
-        int d = down(j,y);
-
-        // generate the sorted differences from an NxN window
-        // - each value is the difference of each pixel from the center pixel
-        // it will then be sorted according to "abs(a) < abs(b)"
-        // FIXME C++11 allows AbsCompare to be declared here, locally
-        int16_t dxy[9] = {
-            gxy - g[u*x + l],
-            gxy - g[u*x + i],
-            gxy - g[u*x + r],
-
-            gxy - g[j*x + l],
-            gxy - g[j*x + i],
-            gxy - g[j*x + r],
-
-            gxy - g[d*x + l],
-            gxy - g[d*x + i],
-            gxy - g[d*x + r],
-        };
-        std::sort(dxy, dxy+9, AbsCompare());
-
-
-        // ----------------------------
-        // Equation 10: bc(x,y)=rTssx,y
-        // ----------------------------
-
-        // result of context-adaptive binning is a weighted sum of similar pixels
-
-        // declare accumulators for weighted sums
-        double bcxy = 0;
-        double buxy = 0;
-
-        // declare variable to store mean
-        double s_bar = 0;
-
-        // pixel order q represents each sorted pixel in the 3x3 window
-        for (int q=1; q<=9; ++q)
-        {
-            // original pixel value
-            const uint8_t s = gxy - dxy[q-1];
-           
-            // accumulate for mean
-            s_bar += s/9.0;
-
-
-            // -----------------------------------------------------
-            // Equation 11: rs(q)=⎧ 1,             r(x,y)−(q−1)>1
-            //                    ⎨ r(x,y)−(q−1),  0<r(x,y)−(q−1) ≤1
-            //                    ⎩ 0,             otherwise
-            // -----------------------------------------------------
-
-            // calculate weighting for each pixel in sorted vector
-            // accumulate the weighted sum
-            if (rxy - (q - 1) > 1) {
-                bcxy += s;
-            } else if (rxy - (q - 1) > 0) {
-                bcxy += s * (rxy - (q - 1));
-            } else {
-                // pixel does not contribute
-            }
-
-
-            // ---------------------------------------------------
-            // Equation 17: ru(q)={ 1,                   if q=1
-            //                    { 1/(p2−1){r(x,y)−1},  otherwise
-            // ---------------------------------------------------
-
-            // rxy is the optimal binning ratio for this pixel
-            // center pixel has weight 1
-            const double ru = (rxy-1.0)/8.0;
-            buxy += (q == 1) ? s : (ru * s);
-
-        }
-
-        // pixels may saturate, so clip
-        bcxy = std::min(255.0,bcxy);
-        buxy = std::min(255.0,buxy);
-
-        // this has been manual convolution of the adaptive binning kernel
-        // this has also been manual convolution of the uniform binning kernel
-
-
-        // ---------------------------------------------------------------------------
-        // Equation 19: b(x,y)=(1−γ) * bc(x,y) + γ * bu(x,y), for γ=1/λ * |s¯(q)−s(1)|
-        // ---------------------------------------------------------------------------
-
-        // λ is a constant for the sensitivity of noise suppression
-        // s¯(q) is the mean value of the local window
-        // s(1) is the center pixel
-
-        // calculate gamma
-        // - abs() was giving me integers, hence the ternary below
-        const double gamma = ((s_bar < gxy) ? (gxy - s_bar) : (s_bar - gxy))/16.0;//abs(s_bar - gxy)/1.0;
-        
-        // combine the result of adaptive binning and uniform binning as a function of gamma 
-        const double bxy = ((1.0-gamma) * bcxy) + (gamma * buxy);
-
-
-        // =======================================
-        // 3.4. Image Blending for Anti-Saturation
-        // =======================================
-
-        // Combine the amplified image (b) and the input (g) in order to prevent saturation
-
-
-        // ----------------------------------------------------
-        // Equation 21: w(x,y)= (1/μ){b(x,y)/(Rb−1) + g(x,y)/2}
-        // ----------------------------------------------------
-
-        // Compute the blending coefficient
-        // - μ is the maximum bit depth of the image for normalisation
-        const double mu = 255;
-        const double wxy = (1/mu) * (( bxy / (Rb - 1.0) ) + ( gxy / 2.0 ));
-
-
-        // ----------------------------------------------------
-        // Equation 20: f^(x,y)=(1−w(x,y))⋅b(x,y)+w(x,y)⋅g(x,y)
-        // ----------------------------------------------------
-
-        // compute anti-saturation blend of pixels
-        const double fxy = (1.0 - wxy)*(bxy) + wxy*(gxy);
-
-
-
-        // write pixel to output image
-        output[j*x + i] = std::max(0.0,std::min(255.0, 1.2*fxy));
-    }
-
-    // finish
-    free(h3x3_g);
-    current = output;
+  double* const HG=new double[W*H];                            // allocate 3x3 average buffer
+  for(int y = 0; y < H; y++) for(int x = 0; x < W; x++) {      // iterate all pixels
+    const int L=(x-1+W)%W,R=(x+1+W)%W,U=(y-1+H)%H,D=(y+1+H)%H; // wrap at edges
+    const double avg=(G[U*W+L]+G[U*W+x]+G[U*W+R]+              // calculate 3x3 average
+                      G[y*W+L]+G[y*W+x]+G[y*W+R]+              // ...
+                      G[D*W+L]+G[D*W+x]+G[D*W+R])/9.0;         // ...
+    HG[y*W+x]=std::min(std::max(avg,0.0),255.0);}              // store average
+  double max=0;for(int i=0;i<W*H;++i) if(HG[i]>max) max=HG[i]; // find max pixel value
+  for(int y=0;y<H;++y) for(int x=0;x<W;++x){                   // iterate all pixels
+    const double hg=HG[y*W+x],                                 // 3x3 average pixel value
+                 t=hg/max,                                     // fractional pixel value
+                 r=1+(1-t)*(Rb-1);                             // optimal binning ratio
+    const uint8_t g=G[y*W+x];                                  // center pixel value
+    const int L=(x-1+W)%W,R=(x+1+W)%W,U=(y-1+H)%H,D=(y+1+H)%H; // wrap at edges
+    int16_t d[9]={g-G[U*W+L],g-G[U*W+x],g-G[U*W+R],            // calculate differences
+                  g-G[y*W+L],g-G[y*W+x],g-G[y*W+R],            // ...
+                  g-G[D*W+L],g-G[D*W+x],g-G[D*W+R]};           // ...
+    std::sort(d,d+9,AbsCompare());                             // sort differences, abs(a)<abs(b)
+    double bc=0,bu=0;                                          // accumulators
+    for(int q=1;q<=9;++q){                                     // iterate sorted differences
+      const uint8_t s=g-d[q-1];                                // original pixel value
+      if(r-(q-1)>1) bc+=s;                                     // full contribution
+      else if(r-(q-1)>0) bc+=s*(r-(q-1));                      // partial contribution
+      bu+=(q==1)?s:(((r-1.0)/8.0)*s);}                         // accumulate
+    const double gamma=abs(hg-g)/lambda,                       // combination coefficient
+                 b=((1.0-gamma)*bc)+(gamma*bu),                // denoised pixel value
+                 w=(1/mu)*((b/(Rb-1.0))+(g/2.0)),              // blending coefficient
+                 f=(1.0-w)*(b)+w*(g);                          // blend for anti-saturation
+    F[y*W+x]=std::max(0.0,std::min(255.0,f));}                 // final pixel value
+  delete[](HG);                                                // clean up
 }

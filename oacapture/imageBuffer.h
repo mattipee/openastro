@@ -73,7 +73,14 @@ private:
   static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[9], double factor = 1.0, double bias = 0.0);
   static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[25], double factor = 1.0, double bias = 0.0);
 
-  void adpb(int);
+  void adpb(int Rb, double lambda, int mu)
+  {
+      const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+      uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+      adpb(source, next, x, y, Rb, lambda, mu);
+      current = next;
+  }
+  static void adpb(const uint8_t*, uint8_t*, int, int, int, double, int);
 
   static void processFlip8Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
   static void processFlip16Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
