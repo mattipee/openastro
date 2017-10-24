@@ -300,6 +300,7 @@ MainWindow::readConfig ( void )
     config.boost.stretch = 0;
     config.boost.sharpen = 0;
     config.boost.multiply = CONFIG::boost::MUL_X1;
+    config.boost.gamma = CONFIG::boost::GAMMA_1_0;;
     config.boost.algorithm = CONFIG::boost::ALGO_NONE;
 
     config.sixteenBit = 0;
@@ -420,6 +421,7 @@ MainWindow::readConfig ( void )
     config.boost.stretch = settings.value ( "options/boost/stretch", 0 ).toInt();
     config.boost.sharpen = settings.value ( "options/boost/sharpen", 0 ).toInt();
     config.boost.multiply = settings.value ( "options/boost/multiply", 0 ).toInt();
+    config.boost.gamma = settings.value ( "options/boost/gamma", 0 ).toInt();
     config.boost.algorithm = settings.value ( "options/boost/algorithm", 0 ).toInt();
 
     config.sixteenBit = settings.value ( "camera/sixteenBit", 0 ).toInt();

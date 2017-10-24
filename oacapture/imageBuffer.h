@@ -56,7 +56,7 @@ public:
   void greyscale(int targetPixelFormat = -1);
   void flip(bool flipX, bool flipY);
 
-  void boost(bool stretch, int sharpen, int multiply, int algorithm );
+  void boost(bool stretch, int sharpen, int multiply, int gamma, int algorithm );
 private:
   bool reserve(int newBufferLength);
   void* nextBuffer();

@@ -58,6 +58,16 @@ BoostSettings::BoostSettings ( QWidget* parent ) : QWidget ( parent )
   multiplyMenu->addItem ( QString::number ( CONFIG::boost::MUL_X32 ), QVariant ( CONFIG::boost::MUL_X32 ) );
   multiplyMenu->setCurrentIndex ( multiplyMenu->findData(config.boost.multiply) );
 
+  gammaLabel = new QLabel ( tr ( "Gamma" ));
+  gammaMenu = new QComboBox ( this );
+  gammaMenu->addItem ( "0.25", QVariant ( CONFIG::boost::GAMMA_0_25 ) );
+  gammaMenu->addItem ( "0.5", QVariant ( CONFIG::boost::GAMMA_0_5 ) );
+  gammaMenu->addItem ( "0.75", QVariant ( CONFIG::boost::GAMMA_0_75 ) );
+  gammaMenu->addItem ( "1", QVariant ( CONFIG::boost::GAMMA_1_0 ) );
+  gammaMenu->addItem ( "1.5", QVariant ( CONFIG::boost::GAMMA_1_5 ) );
+  gammaMenu->addItem ( "2", QVariant ( CONFIG::boost::GAMMA_2_0 ) );
+  gammaMenu->setCurrentIndex ( gammaMenu->findData(config.boost.gamma) );
+
   algorithmLabel = new QLabel ( tr ( "Algorithm" ));
   algorithmMenu = new QComboBox ( this );
   algorithmMenu->addItem ( tr("None"), QVariant ( CONFIG::boost::ALGO_NONE ) );
@@ -86,6 +96,8 @@ BoostSettings::BoostSettings ( QWidget* parent ) : QWidget ( parent )
   box->addSpacing ( 15 );
   box->addWidget ( multiplyLabel );
   box->addWidget ( multiplyMenu );
+  box->addWidget ( gammaLabel );
+  box->addWidget ( gammaMenu );
   box->addSpacing ( 15 );
   box->addWidget ( algorithmLabel );
   box->addWidget ( algorithmMenu );
@@ -97,6 +109,8 @@ BoostSettings::BoostSettings ( QWidget* parent ) : QWidget ( parent )
   connect ( sharpenMenu, SIGNAL( currentIndexChanged ( int )), parent,
       SLOT( dataChanged()));
   connect ( multiplyMenu, SIGNAL( currentIndexChanged ( int )), parent,
+      SLOT( dataChanged()));
+  connect ( gammaMenu, SIGNAL( currentIndexChanged ( int )), parent,
       SLOT( dataChanged()));
   connect ( algorithmMenu, SIGNAL( currentIndexChanged ( int )), parent,
       SLOT( dataChanged()));
@@ -117,6 +131,8 @@ BoostSettings::storeSettings ( void )
       sharpenMenu->itemData(sharpenMenu->currentIndex()).toInt();
   config.boost.multiply =
       multiplyMenu->itemData(multiplyMenu->currentIndex()).toInt();
+  config.boost.gamma =
+      gammaMenu->itemData(gammaMenu->currentIndex()).toInt();
   config.boost.algorithm =
       algorithmMenu->itemData(algorithmMenu->currentIndex()).toInt();
 }

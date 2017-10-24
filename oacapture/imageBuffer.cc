@@ -446,7 +446,7 @@ ImageBuffer::processFlip24BitColour ( uint8_t* imageData, int imageSizeX, int im
 // We've preallocated our buffers anyway, so I don't bother.
 // Perhaps not good for the cache, but these were written quick and
 // dirty to begin with.
-void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int algorithm )
+void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int algorithm )
 {
     // Multiply works ok on RGB24, but my binning doesn't so don't bother
     // Restrict to GREY8 for now.
@@ -534,6 +534,20 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int algorithm 
             break; 
     }
 
+    // GAMMA
+    if (gamma != 100)
+    {
+        const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+        uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+
+        double g = 100.0/gamma;
+        for (int i = 0; i < x*y; ++i)
+        {
+            next[i] = 255 * pow(source[i]/255.0, g);
+        }
+
+        current = next; 
+    }
 
     // MULTIPLY
     if (multiply > 1) {

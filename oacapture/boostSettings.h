@@ -52,6 +52,8 @@ class BoostSettings : public QWidget
     QVBoxLayout*        box;
     QLabel*             multiplyLabel;
     QComboBox*          multiplyMenu;
+    QLabel*             gammaLabel;
+    QComboBox*          gammaMenu;
     QLabel*             algorithmLabel;
     QComboBox*          algorithmMenu;
 };

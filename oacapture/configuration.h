@@ -104,6 +104,8 @@ typedef struct
   struct boost {
     enum { MUL_X1 = 1, MUL_X2 = 2, MUL_X4 = 4, MUL_X8 = 8,
            MUL_X16 = 16, MUL_X32 = 32};
+    enum { GAMMA_0_25 = 25, GAMMA_0_5 = 50, GAMMA_0_75 = 75, GAMMA_1_0 = 100,
+           GAMMA_1_5 = 150, GAMMA_2_0 = 200 };
     enum { ALGO_NONE = 0,
            ALGO_BIN2X2, ALGO_BIN3X3, ALGO_BIN4X4,
            ALGO_AVG2X2, ALGO_AVG3X3, ALGO_AVG4X4,
@@ -119,6 +121,7 @@ typedef struct
     int         stretch;
     int         sharpen;
     int         multiply;
+    int         gamma;
     int         algorithm;
   }	boost;
 
