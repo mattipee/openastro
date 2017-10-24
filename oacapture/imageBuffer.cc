@@ -62,7 +62,7 @@ namespace {
       1, 1, 1, 1, 0,
       0, 0, 0, 0, 0};
     static const int8_t sharpenSoft[] =
-    {-1, -1, -1, -1, -1,
+    { -1, -1, -1, -1, -1,
       -1,  2,  2,  2, -1,
       -1,  2,  8,  2, -1,
       -1,  2,  2,  2, -1,
@@ -604,63 +604,88 @@ void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y,
     }
 }
 
+namespace {
+    // routines to wrap pixel position if <0 or >=dim
+    // caller must call with x or y correctly
+    int up(int p, int d, int n = 1)    { return (p-n + d) % d; }
+    int down(int p, int d, int n = 1)  { return (p+n + d) % d; }
+    int left(int p, int d, int n = 1)  { return up(p,d,n);     }
+    int right(int p, int d, int n = 1) { return down(p,d,n);   }
+}
+
 void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[9], double factor, double bias)
 {
-    for(int i = 1; i < x-1; i++) {
-        for(int j = 1; j < y-1; j++)
-        {
-            int64_t val =
-                source[(j-1) * x + (i-1)] * k[0] +
-                source[(j-1) * x +  i   ] * k[1] +
-                source[(j-1) * x + (i+1)] * k[2] +
-                source[ j    * x + (i-1)] * k[3] +
-                source[ j    * x +  i   ] * k[4] +
-                source[ j    * x + (i+1)] * k[5] +
-                source[(j+1) * x + (i-1)] * k[6] +
-                source[(j+1) * x +  i   ] * k[7] +
-                source[(j+1) * x + (i+1)] * k[8];
+    for(int j = 0; j < y; j++)
+    for(int i = 0; i < x; i++) {
+        int l = left(i,x);
+        int r = right(i,x);
+        int u = up(j,y);
+        int d = down(j,y);
 
-            //truncate values smaller than zero and larger than 255
-            target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
-        }
+        int64_t val =
+            source[u * x + l] * k[0] +
+            source[u * x + i] * k[1] +
+            source[u * x + r] * k[2] +
+
+            source[j * x + l] * k[3] +
+            source[j * x + i] * k[4] +
+            source[j * x + r] * k[5] +
+
+            source[d * x + l] * k[6] +
+            source[d * x + i] * k[7] +
+            source[d * x + r] * k[8];
+
+        //truncate values smaller than zero and larger than 255
+        target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
     }
 }
 
 void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[25], double factor, double bias)
 {
-    for(int i = 2; i < x-2; i++) {
-        for(int j = 2; j < y-2; j++)
-        {
-            int64_t val =
-                source[(j-2) * x + (i-2)] * k[0] +
-                source[(j-2) * x + (i-1)] * k[1] +
-                source[(j-2) * x +  i   ] * k[2] +
-                source[(j-2) * x + (i+1)] * k[3] +
-                source[(j-2) * x + (i+2)] * k[4] +
-                source[(j-1) * x + (i-2)] * k[5] +
-                source[(j-1) * x + (i-1)] * k[6] +
-                source[(j-1) * x +  i   ] * k[7] +
-                source[(j-1) * x + (i+1)] * k[8] +
-                source[(j-1) * x + (i+2)] * k[9] +
-                source[ j    * x + (i-2)] * k[10] +
-                source[ j    * x + (i-1)] * k[11] +
-                source[ j    * x +  i   ] * k[12] +
-                source[ j    * x + (i+1)] * k[13] +
-                source[ j    * x + (i+2)] * k[14] +
-                source[(j+1) * x + (i-2)] * k[15] +
-                source[(j+1) * x + (i-1)] * k[16] +
-                source[(j+1) * x +  i   ] * k[17] +
-                source[(j+1) * x + (i+1)] * k[18] +
-                source[(j+1) * x + (i+2)] * k[19] +
-                source[(j+2) * x + (i-2)] * k[20] +
-                source[(j+2) * x + (i-1)] * k[21] +
-                source[(j+2) * x +  i   ] * k[22] +
-                source[(j+2) * x + (i+1)] * k[23] +
-                source[(j+2) * x + (i+2)] * k[24];
+    for(int j = 0; j < y; j++)
+    for(int i = 0; i < x; i++) {
+        int l = left(i,x);
+        int r = right(i,x);
+        int u = up(j,y);
+        int d = down(j,y);
+        int l2 = left(i,x,2);
+        int r2 = right(i,x,2);
+        int u2 = up(j,y,2);
+        int d2 = down(j,y,2);
 
-            //truncate values smaller than zero and larger than 255
-            target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
-        }
+        int64_t val =
+            source[u2 * x + l2] * k[0] +
+            source[u2 * x + l ] * k[1] +
+            source[u2 * x + i ] * k[2] +
+            source[u2 * x + r ] * k[3] +
+            source[u2 * x + r2] * k[4] +
+
+            source[u  * x + l2] * k[5] +
+            source[u  * x + l ] * k[6] +
+            source[u  * x + i ] * k[7] +
+            source[u  * x + r ] * k[8] +
+            source[u  * x + r2] * k[9] +
+
+            source[j  * x + l2] * k[10] +
+            source[j  * x + l ] * k[11] +
+            source[j  * x + i ] * k[12] +
+            source[j  * x + r ] * k[13] +
+            source[j  * x + r2] * k[14] +
+
+            source[d  * x + l2] * k[15] +
+            source[d  * x + l ] * k[16] +
+            source[d  * x + i ] * k[17] +
+            source[d  * x + r ] * k[18] +
+            source[d  * x + r2] * k[19] +
+
+            source[d2 * x + l2] * k[20] +
+            source[d2 * x + l ] * k[21] +
+            source[d2 * x + i ] * k[22] +
+            source[d2 * x + r ] * k[23] +
+            source[d2 * x + r2] * k[24];
+
+        //truncate values smaller than zero and larger than 255
+        target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
     }
 }
 
@@ -724,8 +749,8 @@ void ImageBuffer::adpb(int Rb)
         if (h3x3_g[i] > max) max = h3x3_g[i];
 
     // iterate through all pixels
-    for (int i=0+1; i<x-1; ++i)
-    for (int j=0+1; j<y-1; ++j)
+    for (int i=0; i<x; ++i)
+    for (int j=0; j<y; ++j)
     {
         // compute t(x,y)
         // - divide each pixel by the maximum value
@@ -777,16 +802,24 @@ void ImageBuffer::adpb(int Rb)
         // current pixel value
         uint8_t gxy = g[j*x + i];
        
-        // generate the sorted differences from a 3x3 window
-        dxy.insert(std::make_pair(gxy - g[(j-1)*x + (i-1)], 0));
-        dxy.insert(std::make_pair(gxy - g[(j-1)*x +  i   ], 1)); 
-        dxy.insert(std::make_pair(gxy - g[(j-1)*x + (i+1)], 2)); 
-        dxy.insert(std::make_pair(gxy - g[ j   *x + (i-1)], 3)); 
-        dxy.insert(std::make_pair(gxy - g[ j   *x +  i   ], 4)); 
-        dxy.insert(std::make_pair(gxy - g[ j   *x + (i+1)], 5)); 
-        dxy.insert(std::make_pair(gxy - g[(j+1)*x + (i-1)], 6)); 
-        dxy.insert(std::make_pair(gxy - g[(j+1)*x +  i   ], 7)); 
-        dxy.insert(std::make_pair(gxy - g[(j+1)*x + (i+1)], 8)); 
+        // generate the sorted differences from an NxN window
+        int l = left(i,x);
+        int r = right(i,x);
+        int u = up(j,y);
+        int d = down(j,y);
+
+        dxy.insert(std::make_pair(gxy - g[u*x + l], 0));
+        dxy.insert(std::make_pair(gxy - g[u*x + i], 1));
+        dxy.insert(std::make_pair(gxy - g[u*x + r], 2));
+
+        dxy.insert(std::make_pair(gxy - g[j*x + l], 3));
+        dxy.insert(std::make_pair(gxy - g[j*x + i], 4));
+        dxy.insert(std::make_pair(gxy - g[j*x + r], 5));
+
+        dxy.insert(std::make_pair(gxy - g[d*x + l], 6));
+        dxy.insert(std::make_pair(gxy - g[d*x + i], 7));
+        dxy.insert(std::make_pair(gxy - g[d*x + r], 8));
+        
 
         // ----------------------------
         // Equation 10: bc(x,y)=rTssx,y
@@ -845,7 +878,7 @@ void ImageBuffer::adpb(int Rb)
             // rxy is the optimal binning ratio for this pixel
             // center pixel has weight 1
             double ru = (rxy-1.0)/8.0;
-            buxy += (pos == 4) ? s : (ru * s); 
+            buxy += (pos == 4) ? s : (ru * s);
 
         }
 
