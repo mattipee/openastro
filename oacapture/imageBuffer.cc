@@ -658,7 +658,12 @@ void ImageBuffer::adpb(int Rb)
 
     // Rb is the maximum binning ratio
 
+    // identify buffer for output of the entire algorithm
+    uint8_t* output = reinterpret_cast<uint8_t*>(nextBuffer());
+
+    // number of pixels
     int L = x*y;
+
 
 
 
@@ -701,55 +706,48 @@ void ImageBuffer::adpb(int Rb)
     // compute max{ h3x3 * g(x,y) }
     // - select the maximum value
     double max=0;
-    for (int i=0; i<L; ++i) if (h3x3_g[i] > max) max = h3x3_g[i];
-
-    // compute t(x,y)
-    // - divide each pixel by the maximum value
-    double* t = (double*)malloc(L*sizeof(double));
-    for (int i=0; i<L; ++i) t[i] = h3x3_g[i] / max;
-
-    free(h3x3_g);
-
-    // ---------------------------------------------
-    // Equation 7: r(x,y) = 1 + (1 - t(x,y)/(Rb - 1)
-    // ---------------------------------------------
-
-    // Rb represents the maximum binning ratio
-    // - see function argument (int Rb)
-
-    // compute r(x,y)
-    // - calculate optimal binning ratio for each pixel
-    double* r = (double*)malloc(L*sizeof(double));
-    for (int i=0; i<L; ++i) r[i] = 1 + (1 - t[i]) * (Rb - 1);
-
-    free(t);
-
-
-    // =============================
-    // 3.2. Context-Adaptive Binning
-    // =============================
-
-    // Calculate a weighted sum of pixels based on the relationship
-    // between each pixel and it's neighbours
-
-
-    // also...
-
-
-    // =================================
-    // 3.3. Noise-Adaptive Pixel Binning
-    // =================================
-
-    // Uniform binning is effective in a noise region.
- 
-
-    // identify buffer for output of the entire algorithm
-    uint8_t* output = reinterpret_cast<uint8_t*>(nextBuffer());
+    for (int i=0; i<L; ++i)
+        if (h3x3_g[i] > max) max = h3x3_g[i];
 
     // iterate through all pixels
     for (int i=0+1; i<x-1; ++i)
     for (int j=0+1; j<y-1; ++j)
     {
+        // compute t(x,y)
+        // - divide each pixel by the maximum value
+        double txy = h3x3_g[j*x+i] / max;
+
+
+        // ---------------------------------------------
+        // Equation 7: r(x,y) = 1 + (1 - t(x,y)/(Rb - 1)
+        // ---------------------------------------------
+
+        // Rb represents the maximum binning ratio
+        // - see function argument (int Rb)
+
+        // compute r(x,y)
+        // - calculate optimal binning ratio for each pixel
+        double rxy = 1 + (1 - txy) * (Rb - 1);
+
+
+        // =============================
+        // 3.2. Context-Adaptive Binning
+        // =============================
+
+        // Calculate a weighted sum of pixels based on the relationship
+        // between each pixel and it's neighbours
+
+
+        // also...
+
+
+        // =================================
+        // 3.3. Noise-Adaptive Pixel Binning
+        // =================================
+
+        // Uniform binning is effective in a noise region.
+
+
         // --------------------------------------------------------------------------------
         // Equation 8: dx,y = sort{g(x, y) − g(x + i, y + j)},  for i, j = −⌊p/2⌋, …, ⌊p/2⌋
         // --------------------------------------------------------------------------------
@@ -792,9 +790,6 @@ void ImageBuffer::adpb(int Rb)
 
         // declare variable to store mean
         double s_bar = 0;
-
-        // optimal binning ratio for this pixel
-        double rxy = r[j*x + i];
 
         // pixel order q represents each sorted pixel in the 3x3 window
         int q = 1;
@@ -862,7 +857,6 @@ void ImageBuffer::adpb(int Rb)
         
         // combine the result of adaptive binning and uniform binning as a function of gamma 
         double bxy = ((1.0-gamma) * bcxy) + (gamma * buxy);
-        //b[j*x + i] = std::max(0.0,std::min(255.0, bxy));
 
 
         // =======================================
@@ -877,7 +871,6 @@ void ImageBuffer::adpb(int Rb)
 
         // Compute the blending coefficient
         // - μ is the maximum bit depth of the image for normalisation
-        
         double mu = 255;
         double wxy = (1/mu) * (( bxy / (Rb - 1.0) ) + ( gxy / 2.0 ));
 
@@ -885,9 +878,14 @@ void ImageBuffer::adpb(int Rb)
         // Equation 20: f^(x,y)=(1−w(x,y))⋅b(x,y)+w(x,y)⋅g(x,y)
         // ----------------------------------------------------
 
+        // compute anti-saturation blend of pixels
         double fxy = (1.0-wxy)*(bxy) + wxy*(gxy);
+
+        // write pixel to output image
         output[j*x + i] = std::max(0.0,std::min(255.0, 1.2*fxy));
     }
-    free(r);
+
+    // finish
+    free(h3x3_g);
     current = output;
 }
