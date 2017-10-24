@@ -298,6 +298,7 @@ MainWindow::readConfig ( void )
     config.greyscale = 0;
     config.boost.enable = 0;
     config.boost.stretch = 0;
+    config.boost.sharpen = 0;
     config.boost.multiply = CONFIG::boost::MUL_X1;
     config.boost.algorithm = CONFIG::boost::ALGO_NONE;
 
@@ -417,6 +418,7 @@ MainWindow::readConfig ( void )
     config.greyscale = settings.value ( "options/greyscale", 0 ).toInt();
     config.boost.enable = settings.value ( "options/boost/enable", 0 ).toInt();
     config.boost.stretch = settings.value ( "options/boost/stretch", 0 ).toInt();
+    config.boost.sharpen = settings.value ( "options/boost/sharpen", 0 ).toInt();
     config.boost.multiply = settings.value ( "options/boost/multiply", 0 ).toInt();
     config.boost.algorithm = settings.value ( "options/boost/algorithm", 0 ).toInt();
 
@@ -965,6 +967,7 @@ MainWindow::writeConfig ( void )
   settings.setValue ( "options/greyscale", config.greyscale );
   settings.setValue ( "options/boost/enable", config.boost.enable );
   settings.setValue ( "options/boost/stretch", config.boost.stretch );
+  settings.setValue ( "options/boost/sharpen", config.boost.sharpen );
   settings.setValue ( "options/boost/multiply", config.boost.multiply );
   settings.setValue ( "options/boost/algorithm", config.boost.algorithm );
 

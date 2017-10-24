@@ -27,6 +27,7 @@
 #pragma once
 #include <iostream>
 #include <stdint.h>
+
 class ImageBuffer
 {
 public:
@@ -55,10 +56,24 @@ public:
   void greyscale(int targetPixelFormat = -1);
   void flip(bool flipX, bool flipY);
 
-  void boost(bool stretch, int multiply, int algorithm );
+  void boost(bool stretch, int sharpen, int multiply, int algorithm );
 private:
   bool reserve(int newBufferLength);
   void* nextBuffer();
+
+  template <size_t D>
+  void convolve(const int8_t (&kernel)[D], double factor = 1.0, double bias = 0.0)
+  {
+      const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+      uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+      convolve(source, next, x, y, kernel, factor, bias);
+      current = next;
+  }
+  static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[1], double factor = 1.0, double bias = 0.0);
+  static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[9], double factor = 1.0, double bias = 0.0);
+  static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[25], double factor = 1.0, double bias = 0.0);
+
+  void adpb(int);
 
   static void processFlip8Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
   static void processFlip16Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
@@ -77,3 +92,4 @@ private:
   int         length;
   bool        isDemosaicked; 
 };
+

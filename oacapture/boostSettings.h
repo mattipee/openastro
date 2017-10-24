@@ -47,6 +47,8 @@ class BoostSettings : public QWidget
   private:
     QLabel*             stretchLabel;
     QCheckBox*          stretchBox;
+    QLabel*             sharpenLabel;
+    QComboBox*          sharpenMenu;
     QVBoxLayout*        box;
     QLabel*             multiplyLabel;
     QComboBox*          multiplyMenu;

@@ -102,13 +102,22 @@ typedef struct
   int			demosaic;
   int			greyscale;
   struct boost {
-    enum { MUL_X1 = 1, MUL_X2 = 2, MUL_X4 = 4, MUL_X8 = 8, MUL_MAX};
-    enum { ALGO_NONE,
+    enum { MUL_X1 = 1, MUL_X2 = 2, MUL_X4 = 4, MUL_X8 = 8,
+           MUL_X16 = 16, MUL_X32 = 32};
+    enum { ALGO_NONE = 0,
            ALGO_BIN2X2, ALGO_BIN3X3, ALGO_BIN4X4,
            ALGO_AVG2X2, ALGO_AVG3X3, ALGO_AVG4X4,
-           ALGO_CUSTOM1 = 254, ALGO_CUSTOM2 = 255};
+           ALGO_dBIN2X2, ALGO_dBIN3X3, ALGO_dBIN4X4,
+           ALGO_dAVG2X2, ALGO_dAVG3X3, ALGO_dAVG4X4,
+           ALGO_ADPB4,
+           ALGO_ADPB6,
+           ALGO_ADPB8,
+           NUM_ALGOS };
+    enum { SHARPEN_NONE, SHARPEN_SOFT, SHARPEN_HARD };
+
     int         enable;
     int         stretch;
+    int         sharpen;
     int         multiply;
     int         algorithm;
   }	boost;

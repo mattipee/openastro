@@ -531,7 +531,6 @@ CaptureWidget::doStartRecording ( int autorunFlag )
     format = OA_GREYSCALE_FMT ( format );
   }
 
-
   if ( config.queryGPSForEachCapture && state.timer && state.timer->hasGPS()) {
     if ( state.timer->readGPS ( &state.latitude, &state.longitude,
         &state.altitude ) == OA_ERR_NONE ) {

@@ -454,7 +454,7 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
 
       // Boost preview image
       if ( config.boost.enable ) {
-        self->previewBuffer.boost(config.boost.stretch,
+        self->previewBuffer.boost(config.boost.stretch, config.boost.sharpen,
             config.boost.multiply, config.boost.algorithm );
       }
 

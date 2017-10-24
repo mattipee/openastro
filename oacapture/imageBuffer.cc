@@ -44,6 +44,34 @@ extern "C" {
 
 #include "configuration.h"
 
+#include <map>
+
+namespace {
+    static const int8_t dBin2x2[] =
+    { 1, 1, 0,
+      1, 1, 0,
+      0, 0, 0 };
+    static const int8_t dBin3x3[] =
+    { 1, 1, 1,
+      1, 1, 1,
+      1, 1, 1 };
+    static const int8_t dBin4x4[] =
+    { 1, 1, 1, 1, 0,
+      1, 1, 1, 1, 0,
+      1, 1, 1, 1, 0,
+      1, 1, 1, 1, 0,
+      0, 0, 0, 0, 0};
+    static const int8_t sharpenSoft[] =
+    {-1, -1, -1, -1, -1,
+      -1,  2,  2,  2, -1,
+      -1,  2,  8,  2, -1,
+      -1,  2,  2,  2, -1,
+      -1, -1, -1, -1, -1};
+    static const int8_t sharpenHard[] =
+    { -1, -1, -1,
+      -1,  9, -1,
+      -1, -1, -1};
+}
 
 ImageBuffer::ImageBuffer()
   : imageData(0), pixelFormat(-1), x(0), y(0), length(0),
@@ -418,7 +446,7 @@ ImageBuffer::processFlip24BitColour ( uint8_t* imageData, int imageSizeX, int im
 // We've preallocated our buffers anyway, so I don't bother.
 // Perhaps not good for the cache, but these were written quick and
 // dirty to begin with.
-void ImageBuffer::boost( bool stretch, int multiply, int algorithm )
+void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int algorithm )
 {
     // Multiply works ok on RGB24, but my binning doesn't so don't bother
     // Restrict to GREY8 for now.
@@ -427,123 +455,90 @@ void ImageBuffer::boost( bool stretch, int multiply, int algorithm )
     }
 
     // ALGORITHM
-    {
-        switch (algorithm) {
-            case CONFIG::boost::ALGO_NONE:
-                break;
+    switch (algorithm) {
+        case CONFIG::boost::ALGO_NONE:
+            break;
 
-            case CONFIG::boost::ALGO_BIN2X2: // bin2x2
-            case CONFIG::boost::ALGO_BIN3X3: // bin3x3
-            case CONFIG::boost::ALGO_BIN4X4: // bin4x4
-            case CONFIG::boost::ALGO_AVG2X2: // avg2x2
-            case CONFIG::boost::ALGO_AVG3X3: // avg3x3
-            case CONFIG::boost::ALGO_AVG4X4: // avg4x4
-                {
-                    const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-                    uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+        case CONFIG::boost::ALGO_ADPB4:
+            adpb(4);
+            break;
 
-                    int bin;
-                    bool avg = false;
-                    switch (algorithm) {
-                      case CONFIG::boost::ALGO_BIN2X2: bin = 2; break;
-                      case CONFIG::boost::ALGO_BIN3X3: bin = 3; break;
-                      case CONFIG::boost::ALGO_BIN4X4: bin = 4; break;
-                      case CONFIG::boost::ALGO_AVG2X2: bin = 2; avg = true; break;
-                      case CONFIG::boost::ALGO_AVG3X3: bin = 3; avg = true; break;
-                      case CONFIG::boost::ALGO_AVG4X4: bin = 4; avg = true; break;
-                      default: bin = 1;
-                    }
-                    memset(next, 0, length*2);
-                    for (int i = 0; i < x; ++i) {
-                        for (int j = 0; j < y; ++j) {
-                            next[(j/bin)*(x/bin) + (i/bin)] += source[j*x + i];
-                        }
-                    }
-                    x = x/bin;
-                    y = y/bin;
-                    length = x*y;
+        case CONFIG::boost::ALGO_ADPB6:
+            adpb(6);
+            break;
 
-                    for (int i=0; i<length; ++i)
-                    {
-                        reinterpret_cast<uint8_t*>(next)[i] = avg ? next[i]/(bin*bin) : std::min(0x00ff,static_cast<int>(next[i]));
-                    }
-                    current = next;
+        case CONFIG::boost::ALGO_ADPB8:
+            adpb(8);
+            break;
+
+        case CONFIG::boost::ALGO_BIN2X2: // bin2x2
+        case CONFIG::boost::ALGO_BIN3X3: // bin3x3
+        case CONFIG::boost::ALGO_BIN4X4: // bin4x4
+        case CONFIG::boost::ALGO_AVG2X2: // avg2x2
+        case CONFIG::boost::ALGO_AVG3X3: // avg3x3
+        case CONFIG::boost::ALGO_AVG4X4: // avg4x4
+            {
+                const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+                uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+
+                int bin;
+                bool avg = false;
+                switch (algorithm) {
+                    case CONFIG::boost::ALGO_BIN2X2: bin = 2; break;
+                    case CONFIG::boost::ALGO_BIN3X3: bin = 3; break;
+                    case CONFIG::boost::ALGO_BIN4X4: bin = 4; break;
+                    case CONFIG::boost::ALGO_AVG2X2: bin = 2; avg = true; break;
+                    case CONFIG::boost::ALGO_AVG3X3: bin = 3; avg = true; break;
+                    case CONFIG::boost::ALGO_AVG4X4: bin = 4; avg = true; break;
+                    default: bin = 1;
                 }
-                break;
 
-            case CONFIG::boost::ALGO_CUSTOM1:
-                {
-                    const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-                    uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
-
-                    memset(next, 0, length*2);
-                    for (int i = 0; i < x-1; ++i)
-                    {
-                        for (int j = 0; j < y-1; ++j)
-                        {
-                            uint8_t p = source[j*x + i];
-                            next[j*x + i] += p;
-                            next[j*x + i+1] += p;
-                            next[(j+1)*x + i] += p;
-                            next[(j+1)*x + (i+1)] += p;
-                        }
+                // accumulate 8bit sums as 16bit
+                memset(next, 0, length*2);
+                for (int i = 0; i < x; ++i) {
+                    for (int j = 0; j < y; ++j) {
+                        next[(j/bin)*(x/bin) + (i/bin)] += source[j*x + i];
                     }
-
-                    // loop through 16-bit values and convert to 8
-                    for (int i=0; i<length; ++i)
-                    {
-                        reinterpret_cast<uint8_t*>(next)[i] = next[i]/4.0;
-                    }
-                    current = next;
                 }
-                break;
+                length = x*y;
 
-            case CONFIG::boost::ALGO_CUSTOM2:
+                // clip (bin) or divide (avg) 16bit sums back to 8bit
+                for (int i=0; i<length; ++i)
                 {
-                    const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-                    uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
-
-                    memset(next, 0, length*2);
-                    for (int i = 0; i < x-2; ++i)
-                    {
-                        for (int j = 0; j < y-2; ++j)
-                        {
-                            uint8_t p = source[j*x + i];
-                            next[j*x + i] += p;
-                            next[j*x + i+1] += p;
-                            next[j*x + i+2] += p;
-                            next[(j+1)*x + i] += p;
-                            next[(j+1)*x + (i+1)] += p;
-                            next[(j+1)*x + (i+2)] += p;
-                            next[(j+2)*x + i] += p;
-                            next[(j+2)*x + (i+1)] += p;
-                            next[(j+2)*x + (i+2)] += p;
-                        }
-                    }
-
-                    // loop through 16-bit values and convert to 8
-                    for (int i=0; i<length; ++i)
-                    {
-                        reinterpret_cast<uint8_t*>(next)[i] = next[i]/9.0;
-                    }
-
-                    current = next;
+                    reinterpret_cast<int8_t*>(next)[i] = std::min(0xff, next[i] / (avg?(bin*bin):1));
                 }
-                break;
-        }
+
+                x = x/bin;
+                y = y/bin;
+                current = next;
+            }
+            break;
+
+        case CONFIG::boost::ALGO_dBIN2X2:
+            convolve(dBin2x2);
+            break; 
+        case CONFIG::boost::ALGO_dBIN3X3:
+            convolve(dBin3x3); 
+            break; 
+        case CONFIG::boost::ALGO_dBIN4X4:
+            convolve(dBin4x4); 
+            break; 
+        case CONFIG::boost::ALGO_dAVG2X2:
+            convolve(dBin2x2, 1.0/4.0); 
+            break; 
+        case CONFIG::boost::ALGO_dAVG3X3:
+            convolve(dBin3x3, 1.0/9.0); 
+            break; 
+        case CONFIG::boost::ALGO_dAVG4X4:
+            convolve(dBin4x4, 1.0/16.0); 
+            break; 
     }
 
 
     // MULTIPLY
-    {
-        const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-        uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
-        int mul = std::max(1,multiply);
-        for (int c = 0; c < length; ++c)
-        {
-            next[c] = std::min(255, source[c] * mul);
-        }
-        current = next;
+    if (multiply > 1) {
+        const int8_t identity[] = { multiply };
+        convolve(identity);
     }
 
     // STRETCH
@@ -567,4 +562,332 @@ void ImageBuffer::boost( bool stretch, int multiply, int algorithm )
         }
         current = next;
     }
+
+
+    // Sharpen
+    switch (sharpen) {
+        case CONFIG::boost::SHARPEN_NONE:
+            break;
+        case CONFIG::boost::SHARPEN_SOFT:
+            convolve(sharpenSoft, 1.0/8.0);
+            break;
+        case CONFIG::boost::SHARPEN_HARD:
+            convolve(sharpenHard);
+            break;
+    }
+}
+
+void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[1], double factor, double bias)
+{
+    for(int i = 0; i < x; i++) {
+        for(int j = 0; j < y; j++)
+        {
+            int64_t val = source[ j * x +  i   ] * k[0];
+
+            //truncate values smaller than zero and larger than 255
+            target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
+        }
+    }
+}
+
+void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[9], double factor, double bias)
+{
+    for(int i = 1; i < x-1; i++) {
+        for(int j = 1; j < y-1; j++)
+        {
+            int64_t val =
+                source[(j-1) * x + (i-1)] * k[0] +
+                source[(j-1) * x +  i   ] * k[1] +
+                source[(j-1) * x + (i+1)] * k[2] +
+                source[ j    * x + (i-1)] * k[3] +
+                source[ j    * x +  i   ] * k[4] +
+                source[ j    * x + (i+1)] * k[5] +
+                source[(j+1) * x + (i-1)] * k[6] +
+                source[(j+1) * x +  i   ] * k[7] +
+                source[(j+1) * x + (i+1)] * k[8];
+
+            //truncate values smaller than zero and larger than 255
+            target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
+        }
+    }
+}
+
+void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[25], double factor, double bias)
+{
+    for(int i = 2; i < x-2; i++) {
+        for(int j = 2; j < y-2; j++)
+        {
+            int64_t val =
+                source[(j-2) * x + (i-2)] * k[0] +
+                source[(j-2) * x + (i-1)] * k[1] +
+                source[(j-2) * x +  i   ] * k[2] +
+                source[(j-2) * x + (i+1)] * k[3] +
+                source[(j-2) * x + (i+2)] * k[4] +
+                source[(j-1) * x + (i-2)] * k[5] +
+                source[(j-1) * x + (i-1)] * k[6] +
+                source[(j-1) * x +  i   ] * k[7] +
+                source[(j-1) * x + (i+1)] * k[8] +
+                source[(j-1) * x + (i+2)] * k[9] +
+                source[ j    * x + (i-2)] * k[10] +
+                source[ j    * x + (i-1)] * k[11] +
+                source[ j    * x +  i   ] * k[12] +
+                source[ j    * x + (i+1)] * k[13] +
+                source[ j    * x + (i+2)] * k[14] +
+                source[(j+1) * x + (i-2)] * k[15] +
+                source[(j+1) * x + (i-1)] * k[16] +
+                source[(j+1) * x +  i   ] * k[17] +
+                source[(j+1) * x + (i+1)] * k[18] +
+                source[(j+1) * x + (i+2)] * k[19] +
+                source[(j+2) * x + (i-2)] * k[20] +
+                source[(j+2) * x + (i-1)] * k[21] +
+                source[(j+2) * x +  i   ] * k[22] +
+                source[(j+2) * x + (i+1)] * k[23] +
+                source[(j+2) * x + (i+2)] * k[24];
+
+            //truncate values smaller than zero and larger than 255
+            target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
+        }
+    }
+}
+
+
+struct AbsCompare { bool operator()(int8_t a, int8_t b) { return abs(a) < abs(b); } };
+void ImageBuffer::adpb(int Rb)
+{
+    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4541814/
+
+    // Rb is the maximum binning ratio
+
+    int L = x*y;
+
+
+
+    // ============================================================
+    // 2.1. Image Degradation Model for Low-Light Image Acquisition
+    // ============================================================
+
+    // A low-light input image consists of signal plus noise
+    // This is what we have captured and are processing here
+
+    // ------------------------------------
+    // Equation 1: g(x,y) = f(x,y) + η(x,y)
+    // ------------------------------------
+
+    const uint8_t* g = reinterpret_cast<const uint8_t*>(current);
+
+    
+    // ======================================
+    // 3.1. Brightness Adaptive Binning Ratio
+    // ======================================
+
+    // Calculates the optimal amplification ratio at each pixel
+    // using a 3x3 average filter.
+
+    // -----------------------------------------------------------
+    // Equation 6: t(x,y) = (h3x3 * g(x,y)) / max{ h3x3 * g(x,y) }
+    // -----------------------------------------------------------
+
+    // h3x3 represents the 3 x 3 average filter
+    static const int8_t h3x3[] =
+    { 1, 1, 1,
+      1, 1, 1,
+      1, 1, 1};
+
+    // compute h3x3 * g(x,y)
+    // - apply 3x3 average filter to input
+    uint8_t* h3x3_g = (uint8_t*)malloc(L);
+    convolve(g, h3x3_g, x, y, h3x3, 1.0/9.0);
+
+    // compute max{ h3x3 * g(x,y) }
+    // - select the maximum value
+    double max=0;
+    for (int i=0; i<L; ++i) if (h3x3_g[i] > max) max = h3x3_g[i];
+
+    // compute t(x,y)
+    // - divide each pixel by the maximum value
+    double* t = (double*)malloc(L*sizeof(double));
+    for (int i=0; i<L; ++i) t[i] = h3x3_g[i] / max;
+
+    free(h3x3_g);
+
+    // ---------------------------------------------
+    // Equation 7: r(x,y) = 1 + (1 - t(x,y)/(Rb - 1)
+    // ---------------------------------------------
+
+    // Rb represents the maximum binning ratio
+    // - see function argument (int Rb)
+
+    // compute r(x,y)
+    // - calculate optimal binning ratio for each pixel
+    double* r = (double*)malloc(L*sizeof(double));
+    for (int i=0; i<L; ++i) r[i] = 1 + (1 - t[i]) * (Rb - 1);
+
+    free(t);
+
+
+    // =============================
+    // 3.2. Context-Adaptive Binning
+    // =============================
+
+    // Calculate a weighted sum of pixels based on the relationship
+    // between each pixel and it's neighbours
+
+
+    // also...
+
+
+    // =================================
+    // 3.3. Noise-Adaptive Pixel Binning
+    // =================================
+
+    // Uniform binning is effective in a noise region.
+ 
+
+    // identify buffer for output of the entire algorithm
+    uint8_t* output = reinterpret_cast<uint8_t*>(nextBuffer());
+
+    // iterate through all pixels
+    for (int i=0+1; i<x-1; ++i)
+    for (int j=0+1; j<y-1; ++j)
+    {
+        // --------------------------------------------------------------------------------
+        // Equation 8: dx,y = sort{g(x, y) − g(x + i, y + j)},  for i, j = −⌊p/2⌋, …, ⌊p/2⌋
+        // --------------------------------------------------------------------------------
+
+        // declare a sorted structure to hold:
+        // - the difference of each pixel from the center pixel
+        // - the position of the pixel in the original image
+        // keys are sorted according to "abs(a) < abs(b)" and may be repeated
+        // FIXME C++11 allows AbsCompare to be declared here, locally
+        typedef std::multimap<int16_t, uint8_t, ::AbsCompare> sorted_diff_vec;
+        sorted_diff_vec dxy;
+
+        // current pixel value
+        uint8_t gxy = g[j*x + i];
+       
+        // generate the sorted differences from a 3x3 window
+        dxy.insert(std::make_pair(gxy - g[(j-1)*x + (i-1)], 0));
+        dxy.insert(std::make_pair(gxy - g[(j-1)*x +  i   ], 1)); 
+        dxy.insert(std::make_pair(gxy - g[(j-1)*x + (i+1)], 2)); 
+        dxy.insert(std::make_pair(gxy - g[ j   *x + (i-1)], 3)); 
+        dxy.insert(std::make_pair(gxy - g[ j   *x +  i   ], 4)); 
+        dxy.insert(std::make_pair(gxy - g[ j   *x + (i+1)], 5)); 
+        dxy.insert(std::make_pair(gxy - g[(j+1)*x + (i-1)], 6)); 
+        dxy.insert(std::make_pair(gxy - g[(j+1)*x +  i   ], 7)); 
+        dxy.insert(std::make_pair(gxy - g[(j+1)*x + (i+1)], 8)); 
+
+        // ----------------------------
+        // Equation 10: bc(x,y)=rTssx,y
+        // ----------------------------
+
+        // result of context-adaptive binning is a weightes sum of similar pixels
+
+        // compute weighting vector rs
+        // - actually unused, here for clarity
+        double rs[9];
+
+        // declare accumulator for weighted sums
+        double bcxy = 0;
+        double buxy = 0;
+
+        // declare variable to store mean
+        double s_bar = 0;
+
+        // optimal binning ratio for this pixel
+        double rxy = r[j*x + i];
+
+        // pixel order q represents each sorted pixel in the 3x3 window
+        int q = 1;
+        for (sorted_diff_vec::const_iterator iter = dxy.begin();
+                iter != dxy.end(); ++iter, ++q)
+        {
+            int d = iter->first;
+            uint8_t pos = iter->second;
+            int s = gxy - d;
+           
+            // accumulate for mean
+            s_bar += s/9.0;
+
+            // -----------------------------------------------------
+            // Equation 11: rs(q)=⎧ 1,             r(x,y)−(q−1)>1
+            //                    ⎨ r(x,y)−(q−1),  0<r(x,y)−(q−1) ≤1
+            //                    ⎩ 0,             otherwise
+            // -----------------------------------------------------
+
+            // calculate weighting for each pixel in sorted vector
+            if (rxy - (q - 1) > 1) {
+                rs[pos] = 1;
+            } else if (rxy - (q - 1) > 0) {
+                rs[pos] = rxy - (q - 1);
+            } else {
+                rs[pos] = 0;
+            }
+
+            // accumulate the weighted sum
+            bcxy += rs[pos] * s;
+
+            
+
+            // ---------------------------------------------------
+            // Equation 17: ru(q)={ 1,                   if q=1
+            //                    { 1/(p2−1){r(x,y)−1},  otherwise
+            // ---------------------------------------------------
+
+            // rxy is the optimal binning ratio for this pixel
+            // center pixel has weight 1
+            double ru = (rxy-1.0)/8.0;
+            buxy += (pos == 4) ? s : (ru * s); 
+
+        }
+
+        // pixels may saturate, so clip
+        bcxy = std::min(255.0,bcxy);
+        buxy = std::min(255.0,buxy);
+
+        // this has been manual convolution of the adaptive binning kernel
+        // this has also been manual convolution of the uniform binning kernel
+
+
+        // ---------------------------------------------------------------------------
+        // Equation 19: b(x,y)=(1−γ) * bc(x,y) + γ * bu(x,y), for γ=1/λ * |s¯(q)−s(1)|
+        // ---------------------------------------------------------------------------
+
+        // λ is a constant for the sensitivity of noise suppression
+        // s¯(q) is the mean value of the local window
+        // s(1) is the center pixel
+
+        // calculate gamma
+        // - abs() was giving me integers, hence the ternary below
+        double gamma = ((s_bar < gxy) ? (gxy - s_bar) : (s_bar - gxy))/16.0;//abs(s_bar - gxy)/1.0;
+        
+        // combine the result of adaptive binning and uniform binning as a function of gamma 
+        double bxy = ((1.0-gamma) * bcxy) + (gamma * buxy);
+        //b[j*x + i] = std::max(0.0,std::min(255.0, bxy));
+
+
+        // =======================================
+        // 3.4. Image Blending for Anti-Saturation
+        // =======================================
+
+        // Combine the amplified image (b) and the input (g) in order to prevent saturation
+
+        // ----------------------------------------------------
+        // Equation 21: w(x,y)= (1/μ){b(x,y)/(Rb−1) + g(x,y)/2}
+        // ----------------------------------------------------
+
+        // Compute the blending coefficient
+        // - μ is the maximum bit depth of the image for normalisation
+        
+        double mu = 255;
+        double wxy = (1/mu) * (( bxy / (Rb - 1.0) ) + ( gxy / 2.0 ));
+
+        // ----------------------------------------------------
+        // Equation 20: f^(x,y)=(1−w(x,y))⋅b(x,y)+w(x,y)⋅g(x,y)
+        // ----------------------------------------------------
+
+        double fxy = (1.0-wxy)*(bxy) + wxy*(gxy);
+        output[j*x + i] = std::max(0.0,std::min(255.0, 1.2*fxy));
+    }
+    free(r);
+    current = output;
 }
