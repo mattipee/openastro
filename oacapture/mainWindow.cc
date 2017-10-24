@@ -971,6 +971,7 @@ MainWindow::writeConfig ( void )
   settings.setValue ( "options/boost/stretch", config.boost.stretch );
   settings.setValue ( "options/boost/sharpen", config.boost.sharpen );
   settings.setValue ( "options/boost/multiply", config.boost.multiply );
+  settings.setValue ( "options/boost/gamma", config.boost.gamma );
   settings.setValue ( "options/boost/algorithm", config.boost.algorithm );
 
   settings.setValue ( "camera/sixteenBit", config.sixteenBit );
