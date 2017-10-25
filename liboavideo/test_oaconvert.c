@@ -93,7 +93,7 @@ do {\
 
 
 
-/* TODO
+/* FIXME - no routines and hence no tests exist for the following formats
 #define OA_PIX_FMT_YUV444P 		22
 #define OA_PIX_FMT_YUV422P 		23
 #define OA_PIX_FMT_YUV420P		24
