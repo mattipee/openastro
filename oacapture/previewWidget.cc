@@ -307,7 +307,7 @@ PreviewWidget::setVideoFramePixelFormat ( int format )
   videoFramePixelFormat = format;
   expectedSize = config.imageSizeX * config.imageSizeY *
       OA_BYTES_PER_PIXEL( videoFramePixelFormat );
-  state.mainWindow->setBitDepthValue( OA_BYTES_PER_PIXEL( format ) * 8 );
+  state.mainWindow->setPixelFormatValue( format );
 }
 
 
@@ -373,7 +373,6 @@ PreviewWidget::forceRecordingStop ( void )
 {
   manualStop = 1;
 }
-
 
 
 void
@@ -737,6 +736,7 @@ PreviewWidget::formatToCfaPattern ( int format )
       return OA_DEMOSAIC_GRBG;
       break;
   }
-  qWarning() << "Invalid format in" << __FUNCTION__;
+  qWarning() << "Invalid format (" << OA_PIX_FMT_STRING(format) <<
+      ") in" << __FUNCTION__;
   return 0;
 }
