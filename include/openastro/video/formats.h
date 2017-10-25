@@ -37,6 +37,8 @@
   OA_PIX_FMT(RGGB8) \
   OA_PIX_FMT(GBRG8) \
   OA_PIX_FMT(GRBG8) \
+  OA_PIX_FMT(GRBG10) \
+  OA_PIX_FMT(GRBG10P) \
   OA_PIX_FMT(BGGR16LE) \
   OA_PIX_FMT(BGGR16BE) \
   OA_PIX_FMT(RGGB16LE) \
@@ -79,9 +81,6 @@ static const char *oa_pix_fmt_strings[] = {
 
 #define OA_PIX_FMT_STRING(x) \
     oa_pix_fmt_strings[x>0 && x<OA_PIX_FMT_MAX ? x : 0]
-
-#define OA_PIX_FMT_GRBG10 		32
-#define OA_PIX_FMT_GRBG10P		33
 
 #define OA_ISGREYSCALE(x) \
     (( x == OA_PIX_FMT_GREY8 ) || ( x == OA_PIX_FMT_GREY16BE ) || \
