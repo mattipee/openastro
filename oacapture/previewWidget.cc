@@ -308,6 +308,16 @@ PreviewWidget::setVideoFramePixelFormat ( int format )
   expectedSize = config.imageSizeX * config.imageSizeY *
       OA_BYTES_PER_PIXEL( videoFramePixelFormat );
   state.mainWindow->setPixelFormatValue( format );
+  config.imagePixelFormat = format; // hack to communicate to test code in demosaicSettings
+
+  int* allowed_output_formats = OA_ALLOWED_OUTPUT_PIX_FMT(format);
+  std::cerr << "Input format: " << OA_PIX_FMT_STRING(format) << "\n";
+  std::cerr << "Output formats: ";
+  for (int i=OA_PIX_FMT_NONE; i<OA_PIX_FMT_MAX; ++i)
+  {
+    if (allowed_output_formats[i]) std::cerr << OA_PIX_FMT_STRING(i) << " ";
+  }
+  std::cerr << "\n";
 }
 
 

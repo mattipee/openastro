@@ -27,6 +27,8 @@
 #ifndef OPENASTRO_CAMERA_FORMATS_H
 #define OPENASTRO_CAMERA_FORMATS_H
 
+#include "../demosaic.h"
+
 #define DEFINE_OA_PIX_FMT(OA_PIX_FMT) \
   OA_PIX_FMT(RGB24) \
   OA_PIX_FMT(BGR24) \
@@ -64,8 +66,8 @@
 
 
 #define OA_PIX_FMT_GRAY8    OA_PIX_FMT_GREY8 
-#define OA_PIX_FMT_GRAY16BE OA_PIX_FMT_GRAY16BE
-#define OA_PIX_FMT_GRAY16LE OA_PIX_FMT_GRAY16LE
+#define OA_PIX_FMT_GRAY16BE OA_PIX_FMT_GREY16BE
+#define OA_PIX_FMT_GRAY16LE OA_PIX_FMT_GREY16LE
 
 
 #define ENUM(FMT) OA_PIX_FMT_##FMT,
@@ -73,77 +75,265 @@ enum { OA_PIX_FMT_NONE = 0,
        DEFINE_OA_PIX_FMT(ENUM)
        OA_PIX_FMT_MAX };
 
+/*
 #define STRING(FMT) #FMT,
 static const char *oa_pix_fmt_strings[] = {
     "error", DEFINE_OA_PIX_FMT(STRING)
 };
 
-
 #define OA_PIX_FMT_STRING(x) \
     oa_pix_fmt_strings[x>0 && x<OA_PIX_FMT_MAX ? x : 0]
+*/
 
-#define OA_ISGREYSCALE(x) \
-    (( x == OA_PIX_FMT_GREY8 ) || ( x == OA_PIX_FMT_GREY16BE ) || \
-    ( x == OA_PIX_FMT_GREY16LE ))
+static const char* OA_PIX_FMT_STRING(int x) {
+    #define STRING(FMT) #FMT,
+    static const char *oa_pix_fmt_strings[] = {
+        "error", DEFINE_OA_PIX_FMT(STRING)
+    };
+    return oa_pix_fmt_strings[x>0 && x<OA_PIX_FMT_MAX ? x : 0];
+}
 
-#define OA_ISLITTLE_ENDIAN(x) \
-    (( x == OA_PIX_FMT_BGGR16LE ) || ( x == OA_PIX_FMT_RGGB16LE ) || \
-    ( x == OA_PIX_FMT_GBRG16LE ) || ( x == OA_PIX_FMT_GRBG16LE ) || \
-    ( x == OA_PIX_FMT_GREY16LE ))
+static int OA_ISGREYSCALE(int x) {
+    switch(x) {     
+        case OA_PIX_FMT_GREY8:
+        case OA_PIX_FMT_GREY16BE:
+        case OA_PIX_FMT_GREY16LE:
+            return 1;
+        default:
+            return 0;
+    }
+}
 
-#define OA_ISBAYER(x) \
-    (( x == OA_PIX_FMT_BGGR8 ) || ( x == OA_PIX_FMT_RGGB8 ) || \
-    ( x == OA_PIX_FMT_GBRG8 ) || ( x == OA_PIX_FMT_GRBG8 ) || \
-    ( x == OA_PIX_FMT_GRBG10 ) || ( x == OA_PIX_FMT_GRBG10P ) || \
-    ( x == OA_PIX_FMT_BGGR16LE ) || ( x == OA_PIX_FMT_BGGR16BE ) || \
-    ( x == OA_PIX_FMT_RGGB16LE ) || ( x == OA_PIX_FMT_RGGB16BE ) || \
-    ( x == OA_PIX_FMT_GBRG16LE ) || ( x == OA_PIX_FMT_GBRG16BE ) || \
-    ( x == OA_PIX_FMT_GRBG16LE ) || ( x == OA_PIX_FMT_GRBG16BE ))
+static int OA_ISLITTLE_ENDIAN(int x)
+{     
+    switch(x) {
+        case OA_PIX_FMT_BGGR16LE:
+        case OA_PIX_FMT_RGGB16LE:
+        case OA_PIX_FMT_GBRG16LE:
+        case OA_PIX_FMT_GRBG16LE:
+        case OA_PIX_FMT_GREY16LE:
+        case OA_PIX_FMT_RGB48LE:
+        case OA_PIX_FMT_BGR48LE:
+            return 1;
+        default:
+            return 0;
+    }
+}
 
-#define OA_ISBAYER8(x) \
-    (( x == OA_PIX_FMT_BGGR8 ) || ( x == OA_PIX_FMT_RGGB8 ) || \
-    ( x == OA_PIX_FMT_GBRG8 ) || ( x == OA_PIX_FMT_GRBG8 ))
+static int OA_ISBAYER8(int x) {
+    switch(x) {
+        case OA_PIX_FMT_BGGR8:
+        case OA_PIX_FMT_RGGB8:
+        case OA_PIX_FMT_GBRG8:
+        case OA_PIX_FMT_GRBG8:
+            return 1;
+        default:
+            return 0;
+    }
+}
 
-#define OA_ISBAYER10(x) \
-    (( x == OA_PIX_FMT_GRBG10 ) || ( x == OA_PIX_FMT_GRBG10P ))
+static int OA_ISBAYER10(int x) {
+    switch (x) {
+        case OA_PIX_FMT_GRBG10:
+        case OA_PIX_FMT_GRBG10P:
+            return 1;
+        default:
+            return 0;
+    }
+}
 
-#define OA_ISBAYER16(x) \
-    (( x == OA_PIX_FMT_BGGR16LE ) || ( x == OA_PIX_FMT_BGGR16BE ) || \
-    ( x == OA_PIX_FMT_RGGB16LE ) || ( x == OA_PIX_FMT_RGGB16BE ) || \
-    ( x == OA_PIX_FMT_GBRG16LE ) || ( x == OA_PIX_FMT_GBRG16BE ) || \
-    ( x == OA_PIX_FMT_GRBG16LE ) || ( x == OA_PIX_FMT_GRBG16BE ))
+static int OA_ISBAYER16(int x) {
+    switch (x) {
+        case OA_PIX_FMT_BGGR16LE:
+        case OA_PIX_FMT_BGGR16BE:
 
-#define OA_BYTES_PER_PIXEL(x) \
-    ((( x == OA_PIX_FMT_BGGR16LE ) || ( x == OA_PIX_FMT_BGGR16BE ) || \
-    ( x == OA_PIX_FMT_RGGB16LE ) || ( x == OA_PIX_FMT_RGGB16BE ) || \
-    ( x == OA_PIX_FMT_GBRG16LE ) || ( x == OA_PIX_FMT_GBRG16BE ) || \
-    ( x == OA_PIX_FMT_GRBG16LE ) || ( x == OA_PIX_FMT_GRBG16BE ) || \
-    ( x == OA_PIX_FMT_GREY16BE ) || ( x == OA_PIX_FMT_GREY16LE ) || \
-    ( x == OA_PIX_FMT_YUYV ) || ( x == OA_PIX_FMT_YUV422P ) || \
-    ( x == OA_PIX_FMT_UYVY ) || ( x == OA_PIX_FMT_GRBG10 )) ? 2 : \
-    (( x == OA_PIX_FMT_RGB24 ) || ( x == OA_PIX_FMT_BGR24 ) || \
-    ( x == OA_PIX_FMT_YUV444P )) ? 3 : \
-    ( x == OA_PIX_FMT_YUV411 ) ? ( 4.0/6.0) : \
-    (( x == OA_PIX_FMT_RGB48BE ) || ( x == OA_PIX_FMT_RGB48LE ) || \
-    ( x == OA_PIX_FMT_BGR48BE ) || ( x == OA_PIX_FMT_BGR48LE )) ? 6 : \
-    ( x == OA_PIX_FMT_GRBG10P ) ? 1.25 : 1 )
+        case OA_PIX_FMT_RGGB16LE:
+        case OA_PIX_FMT_RGGB16BE:
 
-#define OA_IS_LUM_CHROM(x) \
-  ( x >= OA_PIX_FMT_YUV444P && x <= OA_PIX_FMT_YUV410 )
+        case OA_PIX_FMT_GBRG16LE:
+        case OA_PIX_FMT_GBRG16BE:
 
-#define OA_DEMOSAIC_FMT(x) \
-  ((( x == OA_PIX_FMT_BGGR8 ) || ( x == OA_PIX_FMT_RGGB8 ) || \
-  ( x == OA_PIX_FMT_GBRG8 ) || ( x == OA_PIX_FMT_GRBG8 )) \
-  ? OA_PIX_FMT_RGB24 : \
-  (( x == OA_PIX_FMT_BGGR16LE ) || ( x == OA_PIX_FMT_RGGB16LE ) || \
-  ( x == OA_PIX_FMT_GBRG16LE ) || ( x == OA_PIX_FMT_GRBG16LE ) || \
-  ( x == OA_PIX_FMT_GRBG10 ) || ( x == OA_PIX_FMT_GRBG10P )) \
-  ?  OA_PIX_FMT_RGB48LE : \
-  (( x == OA_PIX_FMT_BGGR16BE ) || ( x == OA_PIX_FMT_RGGB16BE ) || \
-  ( x == OA_PIX_FMT_GBRG16BE ) || ( x == OA_PIX_FMT_GRBG16BE )) \
-  ?  OA_PIX_FMT_RGB48BE : 0 )
+        case OA_PIX_FMT_GRBG16LE:
+        case OA_PIX_FMT_GRBG16BE:
+            return 1;
+        default:
+            return 0;
+    }
+}
 
-#define OA_GREYSCALE_FMT(x) \
-  ( OA_BYTES_PER_PIXEL(x) == 1 ? OA_PIX_FMT_GREY8 : OA_PIX_FMT_GREY16LE )
+static int OA_ISBAYER(int x)
+{
+    return OA_ISBAYER8(x)
+        || OA_ISBAYER10(x)
+        || OA_ISBAYER16(x);
+}
 
+static double OA_BYTES_PER_PIXEL(int x) {
+    switch(x) {
+        case OA_PIX_FMT_BGGR16LE:
+        case OA_PIX_FMT_BGGR16BE:
+        case OA_PIX_FMT_RGGB16LE:
+        case OA_PIX_FMT_RGGB16BE:
+        case OA_PIX_FMT_GBRG16LE:
+        case OA_PIX_FMT_GBRG16BE:
+        case OA_PIX_FMT_GRBG16LE:
+        case OA_PIX_FMT_GRBG16BE:
+        case OA_PIX_FMT_GREY16BE:
+        case OA_PIX_FMT_GREY16LE:
+        case OA_PIX_FMT_YUYV:
+        case OA_PIX_FMT_YUV422P:
+        case OA_PIX_FMT_UYVY:
+        case OA_PIX_FMT_GRBG10:
+            return 2;
+
+        case OA_PIX_FMT_RGB24:
+        case OA_PIX_FMT_BGR24:
+        case OA_PIX_FMT_YUV444P:
+            return 3;
+
+        case OA_PIX_FMT_YUV411:
+            return 4.0/6.0;
+
+        case OA_PIX_FMT_RGB48BE:
+        case OA_PIX_FMT_RGB48LE:
+        case OA_PIX_FMT_BGR48BE:
+        case OA_PIX_FMT_BGR48LE:
+            return 6;
+
+        case OA_PIX_FMT_GRBG10P:
+            return 1.25;
+
+        default:
+            return 1;
+    }
+}
+
+static int OA_IS_LUM_CHROM(int x) {
+    return ( x >= OA_PIX_FMT_YUV444P && x <= OA_PIX_FMT_YUV410 );
+}
+
+static int OA_IS_RGB(int x) {
+    switch(x) {
+        case OA_PIX_FMT_RGB24:
+        case OA_PIX_FMT_BGR24:
+        case OA_PIX_FMT_RGB48BE:
+        case OA_PIX_FMT_BGR48BE:
+        case OA_PIX_FMT_RGB48LE:
+        case OA_PIX_FMT_BGR48LE:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+static int OA_GREYSCALE_FMT(int x) {
+  return (OA_BYTES_PER_PIXEL(x) == 1)
+        ? OA_PIX_FMT_GREY8
+        : OA_PIX_FMT_GREY16LE;
+}
+
+static int OA_DEMOSAIC_FMT(int x) {
+    switch(x) {
+        case OA_PIX_FMT_BGGR8:
+        case OA_PIX_FMT_RGGB8:
+        case OA_PIX_FMT_GBRG8:
+        case OA_PIX_FMT_GRBG8:
+            return OA_PIX_FMT_RGB24;
+        case OA_PIX_FMT_BGGR16LE:
+        case OA_PIX_FMT_RGGB16LE:
+        case OA_PIX_FMT_GBRG16LE:
+        case OA_PIX_FMT_GRBG16LE:
+        case OA_PIX_FMT_GRBG10:
+        case OA_PIX_FMT_GRBG10P:
+            return OA_PIX_FMT_RGB48LE;
+        case OA_PIX_FMT_BGGR16BE:
+        case OA_PIX_FMT_RGGB16BE:
+        case OA_PIX_FMT_GBRG16BE:
+        case OA_PIX_FMT_GRBG16BE:
+            return OA_PIX_FMT_RGB48BE;
+        default:
+            return OA_PIX_FMT_NONE;
+    }
+}
+
+static int OA_CFA_FMT(int x) {
+    switch(x) {
+        case OA_PIX_FMT_RGGB8:
+        case OA_PIX_FMT_RGGB16LE:
+        case OA_PIX_FMT_RGGB16BE:
+            return OA_DEMOSAIC_RGGB;
+        case OA_PIX_FMT_BGGR8:
+        case OA_PIX_FMT_BGGR16LE:
+        case OA_PIX_FMT_BGGR16BE:
+            return OA_DEMOSAIC_BGGR;
+        case OA_PIX_FMT_GRBG8:
+        case OA_PIX_FMT_GRBG10:
+        case OA_PIX_FMT_GRBG10P:
+        case OA_PIX_FMT_GRBG16LE:
+        case OA_PIX_FMT_GRBG16BE:
+            return OA_DEMOSAIC_GRBG;
+        case OA_PIX_FMT_GBRG8:
+        case OA_PIX_FMT_GBRG16LE:
+        case OA_PIX_FMT_GBRG16BE:
+            return OA_DEMOSAIC_GBRG;
+        default:
+            return OA_DEMOSAIC_NONE;
+    }
+}
+
+static int OA_CAN_CONVERT_PIX_FMT(int I, int O)
+{
+    if (!O || !I)
+        return 0; // error
+
+    if (O == I)
+        return 1; // can always output the input format
+
+    if (OA_IS_LUM_CHROM(O))
+        return 0; // can't output LUM_CHROME
+
+    if (OA_ISGREYSCALE(O))
+        return 1; // can always output GREY
+
+    if (OA_ISBAYER(O)) {
+        if (!OA_ISBAYER(I))
+            return 0; // can't output BAYER if input was not BAYER
+
+        if (OA_ISBAYER10(O))
+            return 0; // can't output BAYER10
+
+        return (OA_CFA_FMT(I) == OA_CFA_FMT(O)); // FIXME can't convert cfaPattern
+    }
+
+    if (OA_IS_RGB(O)) {
+        if (OA_ISGREYSCALE(I))
+            return 0; // can't convert GREY to RGB
+
+        return (3 == OA_BYTES_PER_PIXEL(O)); // FIXME can't output RGB48
+    }
+
+    return 0;
+}
+
+static void OA_POPULATE_CONVERSION_TABLE(int table[][OA_PIX_FMT_MAX+1])
+{
+    int I, O;
+    if (table[0][0] == 1) return;
+    for (I = OA_PIX_FMT_NONE; I<OA_PIX_FMT_MAX; ++I)
+    for (O = OA_PIX_FMT_NONE+1; O<OA_PIX_FMT_MAX; ++O)
+      table[I][O] = OA_CAN_CONVERT_PIX_FMT(I,O);
+    table[0][0] = 1; // "already calculated" flag
+    for (I = OA_PIX_FMT_NONE; I<OA_PIX_FMT_MAX; ++I) {
+      for (O = OA_PIX_FMT_NONE+1; O<OA_PIX_FMT_MAX; ++O)
+        fprintf(stderr, "%d ", table[I][O]);
+      fprintf(stderr, "\n");
+    }
+}
+static int* OA_ALLOWED_OUTPUT_PIX_FMT(int x)
+{
+    static int table[OA_PIX_FMT_MAX+1][OA_PIX_FMT_MAX+1];
+    OA_POPULATE_CONVERSION_TABLE(table); // will short circuit if already done
+
+    return table[x];
+}
 #endif	/* OPENASTRO_CAMERA_FORMATS_H */

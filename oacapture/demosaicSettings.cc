@@ -86,6 +86,15 @@ DemosaicSettings::DemosaicSettings ( QWidget* parent ) : QWidget ( parent )
   methodButtons->addButton ( smoothHueButton );
   methodButtons->addButton ( vngButton );
 
+
+
+
+
+
+
+
+
+
   box = new QVBoxLayout ( this );
   box->addWidget ( demosaicLabel );
   box->addWidget ( previewBox );
@@ -104,6 +113,49 @@ DemosaicSettings::DemosaicSettings ( QWidget* parent ) : QWidget ( parent )
   box->addWidget ( smoothHueButton );
   box->addWidget ( vngButton );
   box->addStretch ( 1 );
+
+
+
+
+
+  inputFormatLabel = new QLabel("Input format");
+  inputFormatValue = new QLabel(OA_PIX_FMT_STRING(config.imagePixelFormat));
+  outputFormatLabel = new QLabel("Select output format");
+
+  outputFormatMenu = new QComboBox(this);
+  int* allowed_output_formats = OA_ALLOWED_OUTPUT_PIX_FMT(config.imagePixelFormat);
+  for (int i=OA_PIX_FMT_NONE+1; i<OA_PIX_FMT_MAX; ++i)
+  {
+      if (allowed_output_formats[i])
+          outputFormatMenu->addItem ( OA_PIX_FMT_STRING(i), QVariant ( i ) );
+  }
+  doDemosaicCheckbox = new QCheckBox("Do demosaic?", this);
+  doGreyscaleCheckbox = new QCheckBox("Convert to greyscale?", this);
+  box->addSpacing(30);
+  box->addWidget(inputFormatLabel);
+  box->addWidget(inputFormatValue);
+  box->addWidget(outputFormatLabel);
+  box->addWidget(outputFormatMenu);
+  box->addWidget(doDemosaicCheckbox);
+  box->addWidget(doGreyscaleCheckbox);
+
+  connect ( outputFormatMenu, SIGNAL ( currentIndexChanged ( int )), this,
+      SLOT ( updateDoProcessing()));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   setLayout ( box );
   connect ( previewBox, SIGNAL ( stateChanged ( int )), parent,
       SLOT ( dataChanged()));
@@ -184,4 +236,15 @@ DemosaicSettings::updateCFASetting ( void )
   grbgButton->setChecked ( config.cfaPattern == OA_DEMOSAIC_GRBG ? 1 : 0 );
   gbrgButton->setChecked ( config.cfaPattern == OA_DEMOSAIC_GBRG ? 1 : 0 );
   autoButton->setChecked ( config.cfaPattern == OA_DEMOSAIC_AUTO ? 1 : 0 );
+}
+
+void DemosaicSettings::updateDoProcessing(void)
+{
+    int output_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
+
+    doDemosaicCheckbox->setChecked(OA_ISBAYER(config.imagePixelFormat) && !OA_ISBAYER(output_format));
+    doDemosaicCheckbox->setEnabled(OA_ISGREYSCALE(output_format));//OA_ISBAYER(config.imagePixelFormat) && !OA_ISBAYER(output_format));
+
+    doGreyscaleCheckbox->setChecked(OA_ISGREYSCALE(output_format) && !OA_ISGREYSCALE(config.imagePixelFormat));
+    doGreyscaleCheckbox->setEnabled(false);//!OA_ISGREYSCALE(output_format) && !OA_ISGREYSCALE(config.imagePixelFormat));
 }

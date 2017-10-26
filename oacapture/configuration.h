@@ -138,6 +138,7 @@ typedef struct
   int			useROI;
   unsigned int		imageSizeX;
   unsigned int		imageSizeY;
+  int           imagePixelFormat;
 
   // zoom config
   int			zoomButton1Option;

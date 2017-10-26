@@ -45,6 +45,9 @@ class DemosaicSettings : public QWidget
     void		storeSettings ( void );
     void		updateCFASetting ( void );
 
+  public slots:
+    void updateDoProcessing(void);
+
   private:
     QLabel*             demosaicLabel;
     QCheckBox*		previewBox;
@@ -63,4 +66,12 @@ class DemosaicSettings : public QWidget
     QRadioButton*       bilinearButton;
     QRadioButton*       smoothHueButton;
     QRadioButton*       vngButton;
+
+
+    QLabel* inputFormatLabel;
+    QLabel* inputFormatValue;
+    QLabel* outputFormatLabel;
+    QComboBox* outputFormatMenu;
+    QCheckBox* doDemosaicCheckbox;
+    QCheckBox* doGreyscaleCheckbox;
 };
