@@ -81,7 +81,7 @@ oaconvert_greyscale ( const void* source, void* target, int xSize, int ySize, in
     int targetFormat )
 {
   int length;
-  bool swapRB;
+  int swapRB;
 
   if ( !OA_ISGREYSCALE( targetFormat ) ) {
     // FIX ME -- set errno
@@ -123,13 +123,13 @@ oaconvert_greyscale ( const void* source, void* target, int xSize, int ySize, in
       length = xSize * ySize * 1.25;
       switch ( targetFormat ) {
         case OA_PIX_FMT_GREY8:
-          oaGreyscale_10to8( source, target, length, true );
+          oaGreyscale_10to8( source, target, length, 1 );
           break;
         case OA_PIX_FMT_GREY16LE:
-          oaGreyscale_10to16LE( source, target, length, true );
+          oaGreyscale_10to16LE( source, target, length, 1 );
           break;
         case OA_PIX_FMT_GREY16BE:
-          oaGreyscale_10to16BE( source, target, length, true );
+          oaGreyscale_10to16BE( source, target, length, 1 );
           break;
         default:
           return -1; // FIX ME -- set errno
@@ -143,13 +143,13 @@ oaconvert_greyscale ( const void* source, void* target, int xSize, int ySize, in
       length = xSize * ySize * 2;
       switch ( targetFormat ) {
         case OA_PIX_FMT_GREY8:
-          oaGreyscale_10to8( source, target, length, false );
+          oaGreyscale_10to8( source, target, length, 0 );
           break;
         case OA_PIX_FMT_GREY16LE:
-          oaGreyscale_10to16LE( source, target, length, false );
+          oaGreyscale_10to16LE( source, target, length, 0 );
           break;
         case OA_PIX_FMT_GREY16BE:
-          oaGreyscale_10to16BE( source, target, length, false );
+          oaGreyscale_10to16BE( source, target, length, 0 );
           break;
         default:
           return -1; // FIX ME -- set errno
