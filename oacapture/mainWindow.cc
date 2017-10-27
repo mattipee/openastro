@@ -1617,9 +1617,6 @@ MainWindow::connectCamera ( int deviceIndex )
   state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
       ( config.demosaic && config.demosaicOutput ) ||
       config.greyscale) ? 1 : 0 );
-  state.captureWidget->enableFITSCapture (( !OA_ISBAYER( format ) ||
-      ( OA_ISBAYER8( format ) && config.demosaic &&
-      config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
   state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
       ( OA_ISBAYER( format ) && config.demosaic &&
       config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
@@ -2174,9 +2171,6 @@ MainWindow::enableGreyscale ( void )
     state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
         ( config.demosaic && config.demosaicOutput ) ||
         config.greyscale) ? 1 : 0 );
-    state.captureWidget->enableFITSCapture (( !OA_ISBAYER( format ) ||
-        ( OA_ISBAYER8( format ) && config.demosaic &&
-        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
     state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
         ( OA_ISBAYER( format ) && config.demosaic &&
         config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
