@@ -25,8 +25,18 @@
  *****************************************************************************/
 
 #pragma once
+#include <oa_common.h>
+extern "C" {
+//#include <openastro/camera.h>
+//#include <openastro/demosaic.h>
+#include <openastro/video/formats.h>
+}
 #include <iostream>
 #include <stdint.h>
+#include <limits>
+#include <algorithm>
+#include <string.h>
+#include "boostAlgorithms.h"
 
 class ImageBuffer
 {
@@ -64,23 +74,30 @@ private:
   template <size_t D>
   void convolve(const int8_t (&kernel)[D], double factor = 1.0, double bias = 0.0)
   {
-      const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-      uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
-      convolve(source, next, x, y, kernel, factor, bias);
-      current = next;
+    switch (pixelFormat)
+    {
+      case OA_PIX_FMT_GREY8:
+        {
+          const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+          uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+          oaconvolve(source, next, x, y, kernel, factor, bias);
+          current = next;
+        }
+        break;
+      case OA_PIX_FMT_GREY16LE:
+        {
+          const uint16_t* source = reinterpret_cast<const uint16_t*>(current);
+          uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+          oaconvolve(source, next, x, y, kernel, factor, bias);
+          current = next;
+        }
+        break;
+    }
   }
-  static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[1], double factor = 1.0, double bias = 0.0);
-  static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[9], double factor = 1.0, double bias = 0.0);
-  static void convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&kernel)[25], double factor = 1.0, double bias = 0.0);
 
-  void adpb(int Rb, double lambda, int mu)
-  {
-      const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-      uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
-      adpb(source, next, x, y, Rb, lambda, mu);
-      current = next;
-  }
-  static void adpb(const uint8_t*, uint8_t*, int, int, int, double, int);
+  void bin_NxN(int N, bool avg=false);
+  void adpb(int Rb, double lambda);
+
 
   static void processFlip8Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);
   static void processFlip16Bit(uint8_t* imageData, int x, int y, bool flipX, bool flipY);

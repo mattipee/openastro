@@ -83,6 +83,7 @@ BoostSettings::BoostSettings ( QWidget* parent ) : QWidget ( parent )
   algorithmMenu->addItem ( tr("Digital Avg 2x2"), QVariant ( CONFIG::boost::ALGO_dAVG2X2 ) );
   algorithmMenu->addItem ( tr("Digital Avg 3x3"), QVariant ( CONFIG::boost::ALGO_dAVG3X3 ) );
   algorithmMenu->addItem ( tr("Digital Avg 4x4"), QVariant ( CONFIG::boost::ALGO_dAVG4X4 ) );
+  algorithmMenu->addItem ( tr("Adaptive Digital Pixel Binning (gain=2)"), QVariant ( CONFIG::boost::ALGO_ADPB2 ) );
   algorithmMenu->addItem ( tr("Adaptive Digital Pixel Binning (gain=4)"), QVariant ( CONFIG::boost::ALGO_ADPB4 ) );
   algorithmMenu->addItem ( tr("Adaptive Digital Pixel Binning (gain=6)"), QVariant ( CONFIG::boost::ALGO_ADPB6 ) );
   algorithmMenu->addItem ( tr("Adaptive Digital Pixel Binning (gain=8)"), QVariant ( CONFIG::boost::ALGO_ADPB8 ) );

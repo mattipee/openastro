@@ -44,8 +44,6 @@ extern "C" {
 
 #include "configuration.h"
 
-#include <map>
-
 namespace {
     static const int8_t dBin2x2[] =
     { 1, 1, 0,
@@ -449,8 +447,13 @@ ImageBuffer::processFlip24BitColour ( uint8_t* imageData, int imageSizeX, int im
 void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int algorithm )
 {
     // Multiply works ok on RGB24, but my binning doesn't so don't bother
-    // Restrict to GREY8 for now.
-    if (pixelFormat != OA_PIX_FMT_GREY8) {
+    // Restrict to GREY8/16 for now.
+    switch (pixelFormat) {
+      case OA_PIX_FMT_GREY8:
+      case OA_PIX_FMT_GREY16LE:
+        // OK
+        break;
+      default:
         convert(OA_PIX_FMT_GREY8);
     }
 
@@ -459,16 +462,20 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
         case CONFIG::boost::ALGO_NONE:
             break;
 
+        case CONFIG::boost::ALGO_ADPB2:
+            adpb(2, 16.0);
+            break;
+
         case CONFIG::boost::ALGO_ADPB4:
-            adpb(4, 16.0, 255);
+            adpb(4, 16.0);
             break;
 
         case CONFIG::boost::ALGO_ADPB6:
-            adpb(6, 16.0, 255);
+            adpb(6, 16.0);
             break;
 
         case CONFIG::boost::ALGO_ADPB8:
-            adpb(8, 16.0, 255);
+            adpb(8, 16.0);
             break;
 
         case CONFIG::boost::ALGO_BIN2X2: // bin2x2
@@ -478,9 +485,6 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
         case CONFIG::boost::ALGO_AVG3X3: // avg3x3
         case CONFIG::boost::ALGO_AVG4X4: // avg4x4
             {
-                const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-                uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
-
                 int bin;
                 bool avg = false;
                 switch (algorithm) {
@@ -492,25 +496,7 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
                     case CONFIG::boost::ALGO_AVG4X4: bin = 4; avg = true; break;
                     default: bin = 1;
                 }
-
-                // accumulate 8bit sums as 16bit
-                memset(next, 0, length*2);
-                for (int i = 0; i < x; ++i) {
-                    for (int j = 0; j < y; ++j) {
-                        next[(j/bin)*(x/bin) + (i/bin)] += source[j*x + i];
-                    }
-                }
-                length = x*y;
-
-                // clip (bin) or divide (avg) 16bit sums back to 8bit
-                for (int i=0; i<length; ++i)
-                {
-                    reinterpret_cast<int8_t*>(next)[i] = std::min(0xff, next[i] / (avg?(bin*bin):1));
-                }
-
-                x = x/bin;
-                y = y/bin;
-                current = next;
+                bin_NxN(bin, avg);
             }
             break;
 
@@ -537,16 +523,27 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
     // GAMMA
     if (gamma != 100)
     {
-        const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
-        uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
-
-        double g = 100.0/gamma;
-        for (int i = 0; i < x*y; ++i)
-        {
-            next[i] = 255 * pow(source[i]/255.0, g);
-        }
-
-        current = next; 
+      double g = 100.0/gamma;
+      switch (pixelFormat) {
+        case OA_PIX_FMT_GREY8:
+          {
+            const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+            uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+            for (int i = 0; i < x*y; ++i)
+                next[i] = 255 * pow(source[i]/255.0, g);
+            current = next;
+          }
+          break;
+        case OA_PIX_FMT_GREY16LE:
+          {
+            const uint16_t* source = reinterpret_cast<const uint16_t*>(current);
+            uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+            for (int i = 0; i < x*y; ++i)
+                next[i] = 0xffff * pow(source[i]/0xffff, g);
+            current = next;
+          }
+          break;
+      }
     }
 
     // MULTIPLY
@@ -556,6 +553,7 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
     }
 
     // STRETCH
+/*
     if (stretch)
     {
         const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
@@ -576,7 +574,7 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
         }
         current = next;
     }
-
+*/
 
     // Sharpen
     switch (sharpen) {
@@ -591,153 +589,60 @@ void ImageBuffer::boost( bool stretch, int sharpen, int multiply, int gamma, int
     }
 }
 
-void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[1], double factor, double bias)
+void ImageBuffer::bin_NxN(int N, bool avg)
 {
-    for(int i = 0; i < x; i++) {
-        for(int j = 0; j < y; j++)
-        {
-            int64_t val = source[ j * x +  i   ] * k[0];
-
-            //truncate values smaller than zero and larger than 255
-            target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
-        }
-    }
+  switch(pixelFormat) {
+    case OA_PIX_FMT_GREY8:
+      {
+          const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+          uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+          doBin_NxN(source, next, x, y, N, avg); 
+          x = x/N;
+          y = y/N;
+          length = x*y;
+          current = next;
+      }
+      break;
+    case OA_PIX_FMT_GREY16LE:
+      {
+          const uint16_t* source = reinterpret_cast<const uint16_t*>(current);
+          uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+          doBin_NxN(source, next, x, y, N, avg); 
+          x = x/N;
+          y = y/N;
+          length = x*y*2;
+          current = next;
+      }
+      break;
+    default:
+      std::cerr << "Cannot apply Average/Bin to format "
+          << OA_PIX_FMT_STRING(pixelFormat) << "\n";
+      return;
+  }
 }
 
-namespace {
-    // routines to wrap pixel position if <0 or >=dim
-    // caller must call with x or y correctly
-    int up(int p, int d, int n = 1)    { return (p-n + d) % d; }
-    int down(int p, int d, int n = 1)  { return (p+n + d) % d; }
-    int left(int p, int d, int n = 1)  { return up(p,d,n);     }
-    int right(int p, int d, int n = 1) { return down(p,d,n);   }
-}
-
-void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[9], double factor, double bias)
+void ImageBuffer::adpb(int Rb, double lambda)
 {
-    for(int j = 0; j < y; j++)
-    for(int i = 0; i < x; i++) {
-        int l = left(i,x);
-        int r = right(i,x);
-        int u = up(j,y);
-        int d = down(j,y);
-
-        int64_t val =
-            source[u * x + l] * k[0] +
-            source[u * x + i] * k[1] +
-            source[u * x + r] * k[2] +
-
-            source[j * x + l] * k[3] +
-            source[j * x + i] * k[4] +
-            source[j * x + r] * k[5] +
-
-            source[d * x + l] * k[6] +
-            source[d * x + i] * k[7] +
-            source[d * x + r] * k[8];
-
-        //truncate values smaller than zero and larger than 255
-        target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
-    }
+  switch(pixelFormat) {
+    case OA_PIX_FMT_GREY8:
+      {
+        const uint8_t* source = reinterpret_cast<const uint8_t*>(current);
+        uint8_t* next = reinterpret_cast<uint8_t*>(nextBuffer());
+        oaadpb(source, next, x, y, Rb, lambda);
+        current = next;
+      }
+      break;
+    case OA_PIX_FMT_GREY16LE:
+      {
+        const uint16_t* source = reinterpret_cast<const uint16_t*>(current);
+        uint16_t* next = reinterpret_cast<uint16_t*>(nextBuffer());
+        oaadpb(source, next, x, y, Rb, lambda*256);
+        current = next;
+      }
+      break;
+    default:
+      std::cerr << "Cannot apply ADPB to format "
+          << OA_PIX_FMT_STRING(pixelFormat) << "\n";
+  }
 }
 
-void ImageBuffer::convolve(const uint8_t* source, uint8_t* target, int x, int y, const int8_t (&k)[25], double factor, double bias)
-{
-    for(int j = 0; j < y; j++)
-    for(int i = 0; i < x; i++) {
-        int l = left(i,x);
-        int r = right(i,x);
-        int u = up(j,y);
-        int d = down(j,y);
-        int l2 = left(i,x,2);
-        int r2 = right(i,x,2);
-        int u2 = up(j,y,2);
-        int d2 = down(j,y,2);
-
-        int64_t val =
-            source[u2 * x + l2] * k[0] +
-            source[u2 * x + l ] * k[1] +
-            source[u2 * x + i ] * k[2] +
-            source[u2 * x + r ] * k[3] +
-            source[u2 * x + r2] * k[4] +
-
-            source[u  * x + l2] * k[5] +
-            source[u  * x + l ] * k[6] +
-            source[u  * x + i ] * k[7] +
-            source[u  * x + r ] * k[8] +
-            source[u  * x + r2] * k[9] +
-
-            source[j  * x + l2] * k[10] +
-            source[j  * x + l ] * k[11] +
-            source[j  * x + i ] * k[12] +
-            source[j  * x + r ] * k[13] +
-            source[j  * x + r2] * k[14] +
-
-            source[d  * x + l2] * k[15] +
-            source[d  * x + l ] * k[16] +
-            source[d  * x + i ] * k[17] +
-            source[d  * x + r ] * k[18] +
-            source[d  * x + r2] * k[19] +
-
-            source[d2 * x + l2] * k[20] +
-            source[d2 * x + l ] * k[21] +
-            source[d2 * x + i ] * k[22] +
-            source[d2 * x + r ] * k[23] +
-            source[d2 * x + r2] * k[24];
-
-        //truncate values smaller than zero and larger than 255
-        target[j * x + i] = std::min(std::max(int(factor * val + bias), 0), 255);
-    }
-}
-
-
-
-/**
- * Adaptive Digital Pixel Binning
- * https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4541814/
- *
- * G       input image
- * F       output image
- * W       image width (eg 640)
- * H       image height (eg 480)
- * Rb      maximum binning ratio (eg 4)
- * lambda  noise suppression sensitivity (eg 16.0, 1.0)
- * mu      pixel depth?? (eg 255)
- *
- * #include <algorithm>; // std::min, std::max, std::sort
- */
-struct AbsCompare {
-  bool operator()(int16_t a,int16_t b){return abs(a)<abs(b);}  // compare by absolute value
-};
-
-void ImageBuffer::adpb(const uint8_t* G, uint8_t* F, int W, int H, int Rb, double lambda, int mu)
-{
-  double* const HG=new double[W*H];                            // allocate 3x3 average buffer
-  double max=0;                                                // find max average value
-  for(int y=0;y<H;++y)for(int x=0;x<W;++x){                    // iterate all pixels
-    const int L=(x-1+W)%W,R=(x+1+W)%W,U=(y-1+H)%H,D=(y+1+H)%H; // wrap at edges
-    const double avg=(G[U*W+L]+G[U*W+x]+G[U*W+R]+              // convolve 3x3 average kernel
-                      G[y*W+L]+G[y*W+x]+G[y*W+R]+              // ...
-                      G[D*W+L]+G[D*W+x]+G[D*W+R])/9.0;         // ...
-    HG[y*W+x]=avg;if(avg>max)max=avg;}                         // store average and find max
-  for(int y=0;y<H;++y)for(int x=0;x<W;++x){                    // iterate all pixels
-    const double hg=HG[y*W+x],t=hg/max,                        // average/fractional pixel values
-                 r=1+(1-t)*(Rb-1);                             // optimal binning ratio
-    const uint8_t g=G[y*W+x];                                  // center pixel value
-    const int L=(x-1+W)%W,R=(x+1+W)%W,U=(y-1+H)%H,D=(y+1+H)%H; // wrap at edges
-    int16_t d[9]={g-G[U*W+L],g-G[U*W+x],g-G[U*W+R],            // calculate differences
-                  g-G[y*W+L],g-G[y*W+x],g-G[y*W+R],            // ...
-                  g-G[D*W+L],g-G[D*W+x],g-G[D*W+R]};           // ...
-    std::sort(d,d+9,AbsCompare());                             // sort differences, abs(a)<abs(b)
-    double bc=0,bu=0;                                          // accumulators for convolution
-    for(int q=1;q<=9;++q){                                     // iterate sorted differences
-      const uint8_t s=g-d[q-1];                                // original pixel value
-      const double contrib=r-(q-1);                            // calculate contribution
-      bc+=contrib>1?s:contrib>0?(s*contrib):0;                 // convolve context kernel
-      bu+=q==1?s:((r-1.0)/8.0)*s;}                             // convolve uniform kernel
-    const double gamma=abs(hg-g)/lambda,                       // combination coefficient
-                 b=(1.0-gamma)*bc+gamma*bu,                    // denoised pixel value
-                 w=(b/(Rb-1.0)+g/2.0)/mu,                      // blending coefficient
-                 f=(1.0-w)*b+w*g;                              // blend for anti-saturation
-    F[y*W+x]=std::max(0.0,std::min(255.0,f));}                 // final pixel value
-  delete[](HG);                                                // clean up
-}

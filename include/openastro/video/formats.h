@@ -323,11 +323,13 @@ static void OA_POPULATE_CONVERSION_TABLE(int table[][OA_PIX_FMT_MAX+1])
     for (O = OA_PIX_FMT_NONE+1; O<OA_PIX_FMT_MAX; ++O)
       table[I][O] = OA_CAN_CONVERT_PIX_FMT(I,O);
     table[0][0] = 1; // "already calculated" flag
+/*
     for (I = OA_PIX_FMT_NONE; I<OA_PIX_FMT_MAX; ++I) {
       for (O = OA_PIX_FMT_NONE+1; O<OA_PIX_FMT_MAX; ++O)
         fprintf(stderr, "%d ", table[I][O]);
       fprintf(stderr, "\n");
     }
+*/
 }
 static int* OA_ALLOWED_OUTPUT_PIX_FMT(int x)
 {

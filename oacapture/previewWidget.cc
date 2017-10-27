@@ -440,25 +440,36 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
                             config.imageSizeX, config.imageSizeY);
 
   if ( self->previewEnabled ) {
-    // Convert GREY16 to GREY8 or BAYERXX to BAYER8 (or RGB48XX to RGB24??) for preview
-    // Convert YUV to RGB24, (or RGB48XX to RGB24 TODO) for preview
-    // we can flip the preview image here if required
-    self->previewBuffer.ensure8BitGreyOrRaw();
-    self->previewBuffer.ensure24BitRGB();
-    self->previewBuffer.flip(self->flipX, self->flipY);
-
     if (( self->lastDisplayUpdateTime + self->frameDisplayInterval ) < now ) {
       self->lastDisplayUpdateTime = now;
       doDisplay = 1;
 
+      // FIXME: I've kept 16bit for testing boost at 16bit
+      //        ensure 8/24 just before creating new QImage
+      //        this might be a poor choice re: performance
+      //        but it's just for testing...
+
+
+      // we can flip the preview image here if required
+      if (OA_BYTES_PER_PIXEL(self->previewBuffer.getPixelFormat()) == 1.25)
+      {
+        //FIXME... greyscale() will change pixelFormat to greyscale
+        // actually just want to convert to the correct BAYER format
+        self->previewBuffer.greyscale(OA_GREYSCALE_FMT(self->previewBuffer.getPixelFormat()));
+      }
+
+
+      self->previewBuffer.flip(self->flipX, self->flipY);
+
       // Demosaic the preview
       if ( self->demosaic && config.demosaicPreview ) {
+        self->previewBuffer.ensure8BitGreyOrRaw(); // FIXME can't demosaic 10/16bit GREY
         self->previewBuffer.demosaic(cfaPattern, config.demosaicMethod);
       }
 
       // Convert to greyscale (either original, or demosaicked if that happened)
       if ( config.greyscale ) {
-        self->previewBuffer.greyscale(OA_PIX_FMT_GREY8);
+        self->previewBuffer.greyscale(OA_GREYSCALE_FMT(self->previewBuffer.getPixelFormat()));
       }
 
       // Boost preview image
@@ -475,6 +486,13 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
         state->focusOverlay->addScore ( oaFocusScore ( self->previewBuffer.write_buffer(),
             0, config.imageSizeX, config.imageSizeY, fmt ));
       }
+
+      
+      // Convert GREY16 to GREY8 or BAYERXX to BAYER8 (or RGB48XX to RGB24??) for preview
+      // Convert YUV to RGB24, (or RGB48XX to RGB24 TODO) for preview
+      self->previewBuffer.ensure8BitGreyOrRaw();
+      self->previewBuffer.ensure24BitRGB();
+
 
       QImage* newImage;
       QImage* swappedImage = 0;

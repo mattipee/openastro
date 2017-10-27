@@ -111,9 +111,7 @@ typedef struct
            ALGO_AVG2X2, ALGO_AVG3X3, ALGO_AVG4X4,
            ALGO_dBIN2X2, ALGO_dBIN3X3, ALGO_dBIN4X4,
            ALGO_dAVG2X2, ALGO_dAVG3X3, ALGO_dAVG4X4,
-           ALGO_ADPB4,
-           ALGO_ADPB6,
-           ALGO_ADPB8,
+           ALGO_ADPB2, ALGO_ADPB4, ALGO_ADPB6, ALGO_ADPB8,
            NUM_ALGOS };
     enum { SHARPEN_NONE, SHARPEN_SOFT, SHARPEN_HARD };
 
