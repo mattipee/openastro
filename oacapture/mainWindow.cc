@@ -176,7 +176,7 @@ MainWindow::~MainWindow()
   delete about;
   delete histogram;
   delete autorun;
-  delete demosaic;
+  delete output;
   delete fits;
   delete filters;
   delete profiles;
@@ -260,6 +260,44 @@ MainWindow::~MainWindow()
   }
 }
 
+void MainWindow::updateImagePixelFormat()
+{
+  if (state.camera->isInitialised()) {
+      const int fmt = state.camera->videoFramePixelFormat(0);
+
+
+      std::cerr << "Input format: " << OA_PIX_FMT_STRING(fmt) << "\n";
+      std::cerr << "Output formats: ";
+
+      int* allowed_output_formats = OA_ALLOWED_OUTPUT_PIX_FMT(fmt);
+      for (int i=OA_PIX_FMT_NONE; i<OA_PIX_FMT_MAX; ++i)
+      {
+          if (allowed_output_formats[i]) std::cerr << OA_PIX_FMT_STRING(i) << " ";
+      }
+      std::cerr << "\n";
+
+
+      // Output settings window needs this
+      // TODO other dependencies
+      config.imagePixelFormat = fmt;
+
+      // Keep configured output format, if still appropriate
+      // otherwise set output format to input format
+      if (!OA_CAN_CONVERT_PIX_FMT(fmt, config.targetPixelFormat))
+          config.targetPixelFormat = fmt;
+
+      // Update preview widget
+      state.previewWidget->setVideoFramePixelFormat(config.imagePixelFormat);
+
+      // Update capture file formats
+      state.captureWidget->enableOutputFormats(config.targetPixelFormat);
+
+      // Set "input => output" format string in status bar
+      pixelFormatValue->setText (
+          QString( OA_PIX_FMT_STRING( config.imagePixelFormat )).append( " -> " )
+          .append( OA_PIX_FMT_STRING( config.targetPixelFormat )).append( "   " ));
+  }
+}
 
 void
 MainWindow::readConfig ( void )
@@ -294,8 +332,8 @@ MainWindow::readConfig ( void )
     config.darkFrame = 0;
     config.flipX = 0;
     config.flipY = 0;
-    config.demosaic = 0;
-    config.greyscale = 0;
+    config.greyscalePreview = 0;
+    config.targetPixelFormat = 0;
     config.boost.enable = 0;
     config.boost.stretch = 0;
     config.boost.sharpen = 0;
@@ -353,9 +391,9 @@ MainWindow::readConfig ( void )
     config.histogramOnTop = 1;
 
     config.demosaicPreview = 0;
-    config.demosaicOutput = 0;
-    config.cfaPattern = OA_DEMOSAIC_AUTO;
-    config.demosaicMethod = 1;
+    config.demosaic.demosaicOutput = 0;
+    config.demosaic.cfaPattern = OA_DEMOSAIC_AUTO;
+    config.demosaic.method = 1;
 
     config.numProfiles = 0;
     config.numFilters = 0;
@@ -415,8 +453,8 @@ MainWindow::readConfig ( void )
     config.darkFrame = settings.value ( "options/darkFrame", 0 ).toInt();
     config.flipX = settings.value ( "options/flipX", 0 ).toInt();
     config.flipY = settings.value ( "options/flipY", 0 ).toInt();
-    config.demosaic = settings.value ( "options/demosaic", 0 ).toInt();
-    config.greyscale = settings.value ( "options/greyscale", 0 ).toInt();
+    config.greyscalePreview = settings.value ( "options/greyscalePreview", 0 ).toInt();
+    config.targetPixelFormat = settings.value ( "options/targetPixelFormat", 0 ).toInt();
     config.boost.enable = settings.value ( "options/boost/enable", 0 ).toInt();
     config.boost.stretch = settings.value ( "options/boost/stretch", 0 ).toInt();
     config.boost.sharpen = settings.value ( "options/boost/sharpen", 0 ).toInt();
@@ -508,9 +546,9 @@ MainWindow::readConfig ( void )
     config.histogramOnTop = settings.value ( "histogram/onTop", 1 ).toInt();
 
     config.demosaicPreview = settings.value ( "demosaic/preview", 0 ).toInt();
-    config.demosaicOutput = settings.value ( "demosaic/output", 0 ).toInt();
-    config.demosaicMethod = settings.value ( "demosaic/method", 1 ).toInt();
-    config.cfaPattern = settings.value ( "demosaic/cfaPattern",
+    config.demosaic.demosaicOutput = settings.value ( "demosaic/output", 0 ).toInt();
+    config.demosaic.method = settings.value ( "demosaic/method", 1 ).toInt();
+    config.demosaic.cfaPattern = settings.value ( "demosaic/cfaPattern",
         OA_DEMOSAIC_AUTO ).toInt();
 
     config.reticleStyle = settings.value ( "reticle/style",
@@ -965,8 +1003,8 @@ MainWindow::writeConfig ( void )
   settings.setValue ( "options/darkFrame", config.darkFrame );
   settings.setValue ( "options/flipX", config.flipX );
   settings.setValue ( "options/flipY", config.flipY );
-  settings.setValue ( "options/demosaic", config.demosaic );
-  settings.setValue ( "options/greyscale", config.greyscale );
+  settings.setValue ( "options/greyscalePreview", config.greyscalePreview );
+  settings.setValue ( "options/targetPixelFormat", config.targetPixelFormat );
   settings.setValue ( "options/boost/enable", config.boost.enable );
   settings.setValue ( "options/boost/stretch", config.boost.stretch );
   settings.setValue ( "options/boost/sharpen", config.boost.sharpen );
@@ -1023,9 +1061,9 @@ MainWindow::writeConfig ( void )
   settings.setValue ( "histogram/onTop", config.histogramOnTop );
 
   settings.setValue ( "demosaic/preview", config.demosaicPreview );
-  settings.setValue ( "demosaic/output", config.demosaicOutput );
-  settings.setValue ( "demosaic/method", config.demosaicMethod );
-  settings.setValue ( "demosaic/cfaPattern", config.cfaPattern );
+  settings.setValue ( "demosaic/output", config.demosaic.demosaicOutput );
+  settings.setValue ( "demosaic/method", config.demosaic.method );
+  settings.setValue ( "demosaic/cfaPattern", config.demosaic.cfaPattern );
 
   settings.setValue ( "reticle/style", config.reticleStyle );
 
@@ -1235,7 +1273,7 @@ MainWindow::createStatusBar ( void )
   tempValue = new QLabel ( "" );
   tempValue->setFixedWidth ( 30 );
   pixelFormatValue = new QLabel ( "" );
-  pixelFormatValue->setFixedWidth ( 70 );
+  pixelFormatValue->setMinimumWidth ( 70 );
   fpsMaxValue = new QLabel ( "0" );
   fpsMaxValue->setFixedWidth ( 30 );
   fpsActualValue = new QLabel ( "0" );
@@ -1360,13 +1398,13 @@ MainWindow::createMenus ( void )
   demosaicOpt = new QAction ( QIcon ( ":/qt-icons/mosaic.png" ),
       tr ( "Demosaic" ), this );
   demosaicOpt->setCheckable ( true );
-  demosaicOpt->setChecked ( config.demosaic );
+  demosaicOpt->setChecked ( config.demosaicPreview );
   connect ( demosaicOpt, SIGNAL( changed()), this, SLOT( enableDemosaic()));
 
   greyscaleOpt = new QAction ( QIcon ( ":/qt-icons/greyscale.png" ),
       tr ( "Greyscale" ), this );
   greyscaleOpt->setCheckable ( true );
-  greyscaleOpt->setChecked ( config.greyscale );
+  greyscaleOpt->setChecked ( config.greyscalePreview );
   connect ( greyscaleOpt, SIGNAL( changed()), this, SLOT( enableGreyscale()));
 
   boostOpt = new QAction ( QIcon ( ":/qt-icons/wand.png" ),
@@ -1428,10 +1466,10 @@ MainWindow::createMenus ( void )
   filters->setStatusTip ( tr ( "Configuration for filters" ));
   connect ( filters, SIGNAL( triggered()), this, SLOT( doFilterSettings()));
 
-  demosaic = new QAction ( QIcon ( ":/qt-icons/mosaic.png" ),
-      tr ( "Demosaic" ), this );
-  demosaic->setStatusTip ( tr ( "Configuration for demosaicking" ));
-  connect ( demosaic, SIGNAL( triggered()), this, SLOT( doDemosaicSettings()));
+  output = new QAction ( QIcon ( ":/qt-icons/mosaic.png" ),
+      tr ( "Output" ), this );
+  output->setStatusTip ( tr ( "Configuration for output pixel format" ));
+  connect ( output, SIGNAL( triggered()), this, SLOT( doOutputSettings()));
 
   boost = new QAction ( QIcon ( ":/qt-icons/wand.png" ),
       tr ( "Boost" ), this );
@@ -1470,7 +1508,7 @@ MainWindow::createMenus ( void )
   settingsMenu->addAction ( cameraOpt );
   settingsMenu->addAction ( profiles );
   settingsMenu->addAction ( filters );
-  settingsMenu->addAction ( demosaic );
+  settingsMenu->addAction ( output );
   settingsMenu->addAction ( boost );
   settingsMenu->addAction ( fits );
   settingsMenu->addAction ( autorun );
@@ -1580,10 +1618,11 @@ MainWindow::connectCamera ( int deviceIndex )
   clearDroppedFrames();
   state.captureWidget->enableStartButton ( 1 );
   state.captureWidget->enableProfileSelect ( 1 );
+
+  updateImagePixelFormat();
+
   // FIX ME -- should these happen in the "configure" functions for each
   // widget?
-  state.previewWidget->setVideoFramePixelFormat (
-      state.camera->videoFramePixelFormat());
   state.cameraWidget->enableBinningControl ( state.camera->hasBinning ( 2 ));
   v = state.camera->hasControl ( OA_CAM_CTRL_TEMPERATURE );
   state.previewWidget->enableTempDisplay ( v );
@@ -1611,15 +1650,7 @@ MainWindow::connectCamera ( int deviceIndex )
   // find a better way of configuring availability of capture formats
   // this logic is repeated half a dozen times
   // captureWidget should decide
-  state.captureWidget->enableTIFFCapture (( !OA_ISBAYER( format ) ||
-      ( config.demosaic && config.demosaicOutput ) ||
-      config.greyscale) ? 1 : 0 );
-  state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
-      ( config.demosaic && config.demosaicOutput ) ||
-      config.greyscale) ? 1 : 0 );
-  state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
-      ( OA_ISBAYER( format ) && config.demosaic &&
-      config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
+  state.captureWidget->enableOutputFormats(config.targetPixelFormat);
 }
 
 
@@ -1913,13 +1944,6 @@ MainWindow::quit ( void )
 
 
 void
-MainWindow::setPixelFormatValue ( int format )
-{
-  pixelFormatValue->setText ( QString( OA_PIX_FMT_STRING( format )));
-}
-
-
-void
 MainWindow::showFPSMaxValue ( int value )
 {
   fpsMaxValue->setText ( QString::number ( value ));
@@ -2125,56 +2149,14 @@ MainWindow::mosaicFlipWarning ( void )
 void
 MainWindow::enableDemosaic ( void )
 {
-  int demosaicState = demosaicOpt->isChecked() ? 1 : 0;
-  int format;
-
-  config.demosaic = demosaicState;
-  state.previewWidget->enableDemosaic ( demosaicState );
-  if ( state.camera->isInitialised()) {
-    format = state.camera->videoFramePixelFormat ( 0 );
-    // TODO TODO
-    // find a better way of configuring availability of capture formats
-    // this logic is repeated half a dozen times
-    // captureWidget should decide
-    state.captureWidget->enableTIFFCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput ) ||
-        config.greyscale) ? 1 : 0 );
-    state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput ) ||
-        config.greyscale) ? 1 : 0 );
-    state.captureWidget->enableFITSCapture (( !OA_ISBAYER( format ) ||
-        ( OA_ISBAYER8( format ) && config.demosaic &&
-        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
-    state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
-        ( OA_ISBAYER( format ) && config.demosaic &&
-        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
-  }
+    config.demosaicPreview = demosaicOpt->isChecked();
 }
 
 
 void
 MainWindow::enableGreyscale ( void )
 {
-  config.greyscale = greyscaleOpt->isChecked() ? 1 : 0;
-  int format;
-
-  if ( state.camera->isInitialised()) {
-    format = state.camera->videoFramePixelFormat ( 0 );
-
-    // TODO TODO
-    // find a better way of configuring availability of capture formats
-    // this logic is repeated half a dozen times
-    // captureWidget should decide
-    state.captureWidget->enableTIFFCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput ) ||
-        config.greyscale) ? 1 : 0 );
-    state.captureWidget->enablePNGCapture (( !OA_ISBAYER( format ) ||
-        ( config.demosaic && config.demosaicOutput ) ||
-        config.greyscale) ? 1 : 0 );
-    state.captureWidget->enableMOVCapture (( QUICKTIME_OK( format ) || 
-        ( OA_ISBAYER( format ) && config.demosaic &&
-        config.demosaicOutput ) || config.greyscale) ? 1 : 0 );
-  }
+    config.greyscalePreview = demosaicOpt->isChecked();
 }
 
 
@@ -2280,10 +2262,10 @@ MainWindow::doHistogramSettings ( void )
 
 
 void
-MainWindow::doDemosaicSettings ( void )
+MainWindow::doOutputSettings ( void )
 {
   createSettingsWidget();
-  state.settingsWidget->setActiveTab ( state.demosaicSettingsIndex );
+  state.settingsWidget->setActiveTab ( state.outputSettingsIndex );
   state.settingsWidget->show();
 }
 

@@ -112,7 +112,6 @@ class PreviewWidget : public QFrame
     int			reticleCentreY;
     int			flipX;
     int			flipY;
-    int			demosaic;
 
     int                 expectedSize;
     int                 screenUpdatesEnabled;
@@ -136,7 +135,6 @@ class PreviewWidget : public QFrame
     void		mouseReleaseEvent ( QMouseEvent* );
     void		wheelEvent ( QWheelEvent* );
     void		recalculateDimensions ( int );
-    int			formatToCfaPattern ( int );
 
     QVector<QRgb>	greyscaleColourTable;
     QVector<QRgb>	falseColourTable;

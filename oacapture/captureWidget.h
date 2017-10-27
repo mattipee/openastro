@@ -60,11 +60,7 @@ class CaptureWidget : public QGroupBox
     void		enableProfileSelect ( int );
     void		closeOutputHandler ( void );
     OutputHandler*	getOutputHandler ( void );
-    void		enableSERCapture ( int );
-    void		enableTIFFCapture ( int );
-    void		enablePNGCapture ( int );
-    void		enableFITSCapture ( int );
-    void		enableMOVCapture ( int );
+    void        enableOutputFormats( int );
     int			singleAutorunFinished ( void );
     void		enableAutorun ( void );
     QString		getCurrentFilterName ( void );
@@ -77,6 +73,11 @@ class CaptureWidget : public QGroupBox
     void		setSlotCount ( int );
 
   private:
+    void		enableSERCapture ( int );
+    void		enableTIFFCapture ( int );
+    void		enablePNGCapture ( int );
+    void		enableFITSCapture ( int );
+    void		enableMOVCapture ( int );
     void		doStartRecording ( int );
     void		writeSettings ( OutputHandler* );
     QComboBox*		limitTypeMenu;

@@ -212,7 +212,7 @@ static int OA_IS_LUM_CHROM(int x) {
     return ( x >= OA_PIX_FMT_YUV444P && x <= OA_PIX_FMT_YUV410 );
 }
 
-static int OA_IS_RGB(int x) {
+static int OA_ISRGB(int x) {
     switch(x) {
         case OA_PIX_FMT_RGB24:
         case OA_PIX_FMT_BGR24:
@@ -256,7 +256,7 @@ static int OA_DEMOSAIC_FMT(int x) {
     }
 }
 
-static int OA_CFA_FMT(int x) {
+static int OA_CFA_PATTERN(int x) {
     switch(x) {
         case OA_PIX_FMT_RGGB8:
         case OA_PIX_FMT_RGGB16LE:
@@ -302,10 +302,10 @@ static int OA_CAN_CONVERT_PIX_FMT(int I, int O)
         if (OA_ISBAYER10(O))
             return 0; // can't output BAYER10
 
-        return (OA_CFA_FMT(I) == OA_CFA_FMT(O)); // FIXME can't convert cfaPattern
+        return (OA_CFA_PATTERN(I) == OA_CFA_PATTERN(O)); // FIXME can't convert cfaPattern
     }
 
-    if (OA_IS_RGB(O)) {
+    if (OA_ISRGB(O)) {
         if (OA_ISGREYSCALE(I))
             return 0; // can't convert GREY to RGB
 

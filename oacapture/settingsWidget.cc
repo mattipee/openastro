@@ -40,7 +40,7 @@
 #include "filterSettings.h"
 #include "autorunSettings.h"
 #include "histogramSettings.h"
-#include "demosaicSettings.h"
+#include "outputSettings.h"
 #include "boostSettings.h"
 #include "fitsSettings.h"
 #include "timerSettings.h"
@@ -58,7 +58,7 @@ SettingsWidget::SettingsWidget()
   filters = new FilterSettings ( this );
   autorun = new AutorunSettings ( this );
   histogram = new HistogramSettings ( this );
-  demosaic = new DemosaicSettings ( this );
+  output = new OutputSettings ( this );
   boost = new BoostSettings ( this );
   fits = new FITSSettings ( this );
   timer = new TimerSettings ( this );
@@ -84,8 +84,8 @@ SettingsWidget::SettingsWidget()
       QIcon ( ":/qt-icons/clicknrun.png" ), tr ( "Autorun" ));
   state.histogramSettingsIndex = tabSet->addTab ( histogram,
       QIcon ( ":/qt-icons/barchart.png" ), tr ( "Histogram" ));
-  state.demosaicSettingsIndex = tabSet->addTab ( demosaic,
-      QIcon ( ":/qt-icons/mosaic.png" ), tr ( "Demosaic" ));
+  state.outputSettingsIndex = tabSet->addTab ( output,
+      QIcon ( ":/qt-icons/mosaic.png" ), tr ( "Output" ));
   state.boostSettingsIndex = tabSet->addTab ( boost,
       QIcon ( ":/qt-icons/wand.png" ), tr ( "Boost" ));
   state.fitsSettingsIndex = tabSet->addTab ( fits,
@@ -140,7 +140,7 @@ SettingsWidget::storeSettings ( void )
   filters->storeSettings();
   autorun->storeSettings();
   histogram->storeSettings();
-  demosaic->storeSettings();
+  output->storeSettings();
   boost->storeSettings();
   fits->storeSettings();
   timer->storeSettings();
@@ -160,13 +160,13 @@ SettingsWidget::dataChanged ( void )
   saveButton->setEnabled ( 1 );
 }
 
-
+/*
 void
 SettingsWidget::updateCFASetting ( void )
 {
-  demosaic->updateCFASetting();
+  output->updateCFASetting();
 }
-
+*/
 
 void
 SettingsWidget::configureCameraSettings ( void )

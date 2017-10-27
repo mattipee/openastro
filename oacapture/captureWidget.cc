@@ -515,7 +515,7 @@ CaptureWidget::doStartRecording ( int autorunFlag )
     }
   }
 
-  format = state.camera->videoFramePixelFormat();
+  format = config.imagePixelFormat;
 
   // TODO TODO
   // We shouldn't have to calculate pixel formats here
@@ -524,11 +524,11 @@ CaptureWidget::doStartRecording ( int autorunFlag )
   // forced downsample to 8-bit for oademosaic().
   // Until that's communicated in some other way, ensure we do the
   // same here...
-  if ( OA_ISBAYER ( format ) && config.demosaicOutput ) {
+  if ( OA_ISBAYER ( format ) && config.demosaic.demosaicOutput ) {
     format = OA_PIX_FMT_RGB24;//OA_DEMOSAIC_FMT ( format );
   }
-  if ( config.greyscale ) {
-    format = OA_GREYSCALE_FMT ( format );
+  if ( OA_ISGREYSCALE(config.targetPixelFormat)) {
+    format = OA_GREYSCALE_FMT ( OA_DEMOSAIC_FMT( format ));
   }
 
   if ( config.queryGPSForEachCapture && state.timer && state.timer->hasGPS()) {
@@ -802,6 +802,25 @@ CaptureWidget::getOutputHandler ( void )
   return outputHandler;
 }
 
+void
+CaptureWidget::enableOutputFormats( int fmt )
+{
+    // FIXME this needs accurately implemented
+    if (OA_ISBAYER(fmt)) {
+        enableSERCapture(0);
+        enableTIFFCapture(0);
+        enablePNGCapture(0);
+        enableFITSCapture(1);
+        enableMOVCapture(0);
+    }
+    if (OA_ISGREYSCALE(fmt) || OA_ISRGB(fmt)) {
+        enableSERCapture(1);
+        enableTIFFCapture(1);
+        enablePNGCapture(1);
+        enableFITSCapture(1);
+        enableMOVCapture(1);
+    }
+}
 
 void
 CaptureWidget::enableSERCapture ( int state )

@@ -99,8 +99,9 @@ typedef struct
   int			derotate;
   int			flipX;
   int			flipY;
-  int			demosaic;
-  int			greyscale;
+  int			demosaicPreview;
+  int			greyscalePreview;
+
   struct boost {
     enum { MUL_X1 = 1, MUL_X2 = 2, MUL_X4 = 4, MUL_X8 = 8,
            MUL_X16 = 16, MUL_X32 = 32};
@@ -137,6 +138,7 @@ typedef struct
   unsigned int		imageSizeX;
   unsigned int		imageSizeY;
   int           imagePixelFormat;
+  int           targetPixelFormat;
 
   // zoom config
   int			zoomButton1Option;
@@ -182,10 +184,11 @@ typedef struct
   int			histogramOnTop;
 
   // demosaic config
-  int			demosaicPreview;
-  int			demosaicOutput;
-  int			cfaPattern;
-  int			demosaicMethod;
+  struct {
+    int			demosaicOutput;
+    int			cfaPattern;
+    int			method;
+  } demosaic;
 
   // saved profiles
   int			numProfiles;

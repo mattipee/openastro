@@ -67,7 +67,7 @@ typedef struct
   int			filterSettingsIndex;
   int			autorunSettingsIndex;
   int			histogramSettingsIndex;
-  int			demosaicSettingsIndex;
+  int			outputSettingsIndex;
   int			boostSettingsIndex;
   int			fitsSettingsIndex;
   int			timerSettingsIndex;

@@ -71,7 +71,6 @@ PreviewWidget::PreviewWidget ( QWidget* parent ) : QFrame ( parent )
   recalculateDimensions ( zoomFactor );
   expectedSize = config.imageSizeX * config.imageSizeY *
       OA_BYTES_PER_PIXEL( videoFramePixelFormat );
-  demosaic = config.demosaic;
 
   int r = config.currentColouriseColour.red();
   int g = config.currentColouriseColour.green();
@@ -307,17 +306,6 @@ PreviewWidget::setVideoFramePixelFormat ( int format )
   videoFramePixelFormat = format;
   expectedSize = config.imageSizeX * config.imageSizeY *
       OA_BYTES_PER_PIXEL( videoFramePixelFormat );
-  state.mainWindow->setPixelFormatValue( format );
-  config.imagePixelFormat = format; // hack to communicate to test code in demosaicSettings
-
-  int* allowed_output_formats = OA_ALLOWED_OUTPUT_PIX_FMT(format);
-  std::cerr << "Input format: " << OA_PIX_FMT_STRING(format) << "\n";
-  std::cerr << "Output formats: ";
-  for (int i=OA_PIX_FMT_NONE; i<OA_PIX_FMT_MAX; ++i)
-  {
-    if (allowed_output_formats[i]) std::cerr << OA_PIX_FMT_STRING(i) << " ";
-  }
-  std::cerr << "\n";
 }
 
 
@@ -346,13 +334,6 @@ void
 PreviewWidget::enableFlipY ( int state )
 {
   flipY = state;
-}
-
-
-void
-PreviewWidget::enableDemosaic ( int state )
-{
-  demosaic = state;
 }
 
 
@@ -428,13 +409,11 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
   unsigned long now = ( unsigned long ) t.tv_sec * 1000 +
       ( unsigned long ) t.tv_usec / 1000;
 
-  int cfaPattern = config.cfaPattern;
-  if ( OA_ISBAYER ( self->videoFramePixelFormat )) {
-    if ( OA_DEMOSAIC_AUTO == cfaPattern ) {
-      cfaPattern = self->formatToCfaPattern ( self->videoFramePixelFormat );
-    }
-  }
-
+  const int cfaPattern = OA_ISBAYER( self->videoFramePixelFormat )
+                         && OA_DEMOSAIC_AUTO == config.demosaic.cfaPattern
+                            ? OA_CFA_PATTERN( self->videoFramePixelFormat )
+                            : config.demosaic.cfaPattern;
+                
   // Preview Image
   self->previewBuffer.reset(imageData, self->videoFramePixelFormat,
                             config.imageSizeX, config.imageSizeY);
@@ -462,13 +441,13 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
       self->previewBuffer.flip(self->flipX, self->flipY);
 
       // Demosaic the preview
-      if ( self->demosaic && config.demosaicPreview ) {
+      if ( config.demosaicPreview ) {
         self->previewBuffer.ensure8BitGreyOrRaw(); // FIXME can't demosaic 10/16bit GREY
-        self->previewBuffer.demosaic(cfaPattern, config.demosaicMethod);
+        self->previewBuffer.demosaic(cfaPattern, config.demosaic.method);
       }
 
       // Convert to greyscale (either original, or demosaicked if that happened)
-      if ( config.greyscale ) {
+      if ( config.greyscalePreview ) {
         self->previewBuffer.greyscale(OA_GREYSCALE_FMT(self->previewBuffer.getPixelFormat()));
       }
 
@@ -578,17 +557,17 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
       }
 
       // Demosaic the output frame
-      if ( config.demosaicOutput ) {
+      if ( config.demosaic.demosaicOutput ) {
         // If it's possible that the write CFA pattern is not the same
         // as the preview one, this code will need fixing to reset
         // cfaPattern, but I can't see that such a thing is possible
         // at the moment
-        self->writeBuffer.demosaic(cfaPattern, config.demosaicMethod);
+        self->writeBuffer.demosaic(cfaPattern, config.demosaic.method);
       }
 
       // Convert output frame to greyscale
-      if (config.greyscale) {
-        self->writeBuffer.greyscale();
+      if (OA_ISGREYSCALE(config.targetPixelFormat)) {
+        self->writeBuffer.greyscale(config.targetPixelFormat);
       }
 
       // These calls should be thread-safe
@@ -636,11 +615,11 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
 
       // If recording, output image will already have been modified
       // demosaic() will return without modification if not a bayer format
-      if ( config.demosaicOutput ) {
-        self->writeBuffer.demosaic(cfaPattern, config.demosaicMethod);
+      if ( config.demosaic.demosaicOutput ) {
+        self->writeBuffer.demosaic(cfaPattern, config.demosaic.method);
       }
-      if (config.greyscale) {
-        self->writeBuffer.greyscale();
+      if (OA_ISGREYSCALE(config.targetPixelFormat)) {
+        self->writeBuffer.greyscale(config.targetPixelFormat);
       }
 
       state->histogramWidget->process ( self->writeBuffer.read_buffer(), self->writeBuffer.frameLength(),
@@ -737,34 +716,3 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
 }
 
 
-int
-PreviewWidget::formatToCfaPattern ( int format )
-{
-  switch ( format ) {
-    case OA_PIX_FMT_BGGR8:
-    case OA_PIX_FMT_BGGR16LE:
-    case OA_PIX_FMT_BGGR16BE:
-      return OA_DEMOSAIC_BGGR;
-      break;
-    case OA_PIX_FMT_RGGB8:
-    case OA_PIX_FMT_RGGB16LE:
-    case OA_PIX_FMT_RGGB16BE:
-      return OA_DEMOSAIC_RGGB;
-      break;
-    case OA_PIX_FMT_GBRG8:
-    case OA_PIX_FMT_GBRG16LE:
-    case OA_PIX_FMT_GBRG16BE:
-      return OA_DEMOSAIC_GBRG;
-      break;
-    case OA_PIX_FMT_GRBG8:
-    case OA_PIX_FMT_GRBG10:
-    case OA_PIX_FMT_GRBG10P:
-    case OA_PIX_FMT_GRBG16LE:
-    case OA_PIX_FMT_GRBG16BE:
-      return OA_DEMOSAIC_GRBG;
-      break;
-  }
-  qWarning() << "Invalid format (" << OA_PIX_FMT_STRING(format) <<
-      ") in" << __FUNCTION__;
-  return 0;
-}

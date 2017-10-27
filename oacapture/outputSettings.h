@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * demosaicSettings.h -- class declaration
+ * outputSettings.h -- class declaration
  *
  * Copyright 2013,2014,2016,2017 James Fidell (james@openastroproject.org)
  *
@@ -35,24 +35,31 @@
 #include <QtGui>
 
 
-class DemosaicSettings : public QWidget
+class OutputSettings : public QWidget
 {
   Q_OBJECT
 
   public:
-    			DemosaicSettings ( QWidget* );
-    			~DemosaicSettings();
+    			OutputSettings ( QWidget* );
+    			~OutputSettings();
     void		storeSettings ( void );
-    void		updateCFASetting ( void );
+    void		loadSettings ( void );
 
   public slots:
-    void updateDoProcessing(void);
+    void updateDoProcessing(int index);
+    void selectivelyControlDemosaic(void);
 
   private:
-    QLabel*             demosaicLabel;
-    QCheckBox*		previewBox;
-    QCheckBox*		outputBox;
     QVBoxLayout*	box;
+
+    QLabel* inputFormatLabel;
+    QLabel* inputFormatValue;
+    QLabel* outputFormatLabel;
+    QComboBox* outputFormatMenu;
+    QCheckBox* doDemosaicCheckbox;
+    QCheckBox* doGreyscaleCheckbox;
+    QCheckBox* dummyForceDataChanged;// don't understand qt signals... this is a HACK!
+
     QLabel*             cfaLabel;
     QButtonGroup*       cfaButtons;
     QRadioButton*       rggbButton;
@@ -67,11 +74,4 @@ class DemosaicSettings : public QWidget
     QRadioButton*       smoothHueButton;
     QRadioButton*       vngButton;
 
-
-    QLabel* inputFormatLabel;
-    QLabel* inputFormatValue;
-    QLabel* outputFormatLabel;
-    QComboBox* outputFormatMenu;
-    QCheckBox* doDemosaicCheckbox;
-    QCheckBox* doGreyscaleCheckbox;
 };

@@ -58,10 +58,10 @@ class MainWindow : public QMainWindow
   public:
 			MainWindow();
 			~MainWindow();
+    void       updateImagePixelFormat();
     void		clearTemperature ( void );
     void		resetTemperatureLabel ( void );
     void		clearDroppedFrames ( void );
-    void		setPixelFormatValue ( int );
     void		showFPSMaxValue ( int );
     void		clearFPSMaxValue ( void );
     void		setNightStyleSheet ( QWidget* );
@@ -164,7 +164,7 @@ class MainWindow : public QMainWindow
     QAction*		cameraOpt;
     QAction*		profiles;
     QAction*		filters;
-    QAction*		demosaic;
+    QAction*		output;
     QAction*		boost;
     QAction*		fits;
     QAction*		timer;
@@ -235,7 +235,7 @@ class MainWindow : public QMainWindow
     void		doCameraSettings ( void );
     void		doProfileSettings ( void );
     void		doFilterSettings ( void );
-    void		doDemosaicSettings ( void );
+    void		doOutputSettings ( void );
     void		doBoostSettings ( void );
     void		doFITSSettings ( void );
     void		doTimerSettings ( void );

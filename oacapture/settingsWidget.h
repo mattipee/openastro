@@ -41,7 +41,7 @@
 #include "filterSettings.h"
 #include "autorunSettings.h"
 #include "histogramSettings.h"
-#include "demosaicSettings.h"
+#include "outputSettings.h"
 #include "boostSettings.h"
 #include "fitsSettings.h"
 #include "timerSettings.h"
@@ -56,7 +56,7 @@ class SettingsWidget : public QWidget
     			~SettingsWidget();
     void		setActiveTab ( int );
     void		enableTab ( int, int );
-    void		updateCFASetting ( void );
+//    void		updateCFASetting ( void );
     void		configureCameraSettings ( void );
     void		enableFlipX ( int );
     void		enableFlipY ( int );
@@ -75,7 +75,7 @@ class SettingsWidget : public QWidget
     FilterSettings*	filters;
     AutorunSettings*	autorun;
     HistogramSettings*	histogram;
-    DemosaicSettings*	demosaic;
+    OutputSettings*	output;
     BoostSettings* boost;
     FITSSettings*	fits;
     TimerSettings*	timer;
