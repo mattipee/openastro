@@ -51,12 +51,12 @@
 
 #ifdef HAVE_LIBCFITSIO
 #define	MAX_FILE_FORMATS	8
-static QString	fileFormats[MAX_FILE_FORMATS] = {
+static const QString	fileFormats[MAX_FILE_FORMATS] = {
     "", "AVI", "SER", "TIFF", "PNG", "FITS", "MOV", "RAW"
 };
 #else
 #define	MAX_FILE_FORMATS	7
-static QString	fileFormats[MAX_FILE_FORMATS] = {
+static const QString	fileFormats[MAX_FILE_FORMATS] = {
     "", "AVI", "SER", "TIFF", "PNG", "MOV", "RAW"
 };
 #endif
@@ -156,14 +156,20 @@ CaptureWidget::CaptureWidget ( QWidget* parent ) : QGroupBox ( parent )
 
   typeLabel = new QLabel ( tr ( "Type:" ), this );
   typeMenu = new QComboBox ( this );
-  for ( int i = 1; i < MAX_FILE_FORMATS; i++ ) {
-    QVariant v(i);
-    typeMenu->addItem ( fileFormats[i], v );
-  }
-  typeMenu->setCurrentIndex ( config.fileTypeOption - 1 );
-  haveFITS = haveTIFF = havePNG = haveSER = haveMOV = 1;
+//  for ( int i = 1; i < MAX_FILE_FORMATS; i++ ) {
+//    typeMenu->addItem ( fileFormats[i], QVariant(i) );
+//  }
+//  typeMenu->setCurrentIndex ( config.fileTypeOption - 1 );
+//  haveFITS = haveTIFF = havePNG = haveSER = haveMOV = 1;
   connect ( typeMenu, SIGNAL( currentIndexChanged ( int )), this,
       SLOT( fileTypeChanged ( int )));
+/*** HACK I don't understand signals ****/
+  forceFileTypeDisabledWarning = new QSpinBox();
+  forceFileTypeDisabledWarning->setMinimum(0);
+  forceFileTypeDisabledWarning->setMaximum(MAX_FILE_FORMATS-1);
+  connect ( forceFileTypeDisabledWarning, SIGNAL( valueChanged ( int )), this,
+      SLOT( fileTypeDisabled ( int )));
+  
 
   limitCheckbox = new QCheckBox ( tr ( "Limit:" ), this );
   limitCheckbox->setToolTip ( tr ( "Set a capture time limit" ));
@@ -205,7 +211,7 @@ CaptureWidget::CaptureWidget ( QWidget* parent ) : QGroupBox ( parent )
   if ( config.framesLimitValue > 0 ) {
     countStr = QString::number ( config.framesLimitValue );
   } else {
-    countStr = "0";
+      countStr = "0";
   }
   countFramesMenu->setEditText ( countStr );
   if ( config.secondsLimitValue > 0 ) {
@@ -355,11 +361,17 @@ CaptureWidget::showLimitInputBox ( int state )
 }
 
 
+void CaptureWidget::fileTypeDisabled ( int format )
+{
+    std::cerr << "in fileTypeDisabled " << fileFormats[format].toStdString() << "\n";
+      QMessageBox::warning ( this, APPLICATION_NAME,
+        QString(fileFormats[format]).append( tr ( " output format has been disabled" )));
+}
 void
 CaptureWidget::fileTypeChanged ( int index )
 {
-  QVariant v = typeMenu->itemData ( index );
-  config.fileTypeOption = v.toInt();
+  config.fileTypeOption = typeMenu->itemData ( index ).toInt();
+    std::cerr << "in CaptureWidget::fileTypeChanged(): " << fileFormats[config.fileTypeOption].toStdString() << "@" << index << "\n";
   SET_PROFILE_CONFIG( fileTypeOption, config.fileTypeOption );
   if ( CAPTURE_TIFF == config.fileTypeOption ||
       CAPTURE_PNG == config.fileTypeOption ||
@@ -515,21 +527,7 @@ CaptureWidget::doStartRecording ( int autorunFlag )
     }
   }
 
-  format = config.imagePixelFormat;
-
-  // TODO TODO
-  // We shouldn't have to calculate pixel formats here
-  // There is logic in previewWidget.cc when we actually compute
-  // the output frame that determines the format. There is also a
-  // forced downsample to 8-bit for oademosaic().
-  // Until that's communicated in some other way, ensure we do the
-  // same here...
-  if ( OA_ISBAYER ( format ) && config.demosaic.demosaicOutput ) {
-    format = OA_PIX_FMT_RGB24;//OA_DEMOSAIC_FMT ( format );
-  }
-  if ( OA_ISGREYSCALE(config.targetPixelFormat)) {
-    format = OA_GREYSCALE_FMT ( OA_DEMOSAIC_FMT( format ));
-  }
+  format = config.targetPixelFormat;
 
   if ( config.queryGPSForEachCapture && state.timer && state.timer->hasGPS()) {
     if ( state.timer->readGPS ( &state.latitude, &state.longitude,
@@ -604,7 +602,6 @@ CaptureWidget::doStartRecording ( int autorunFlag )
           state.controlWidget->getFPSDenominator(), format );
       break;
   }
-
   if ( out && ( CAPTURE_TIFF == config.fileTypeOption ||
       CAPTURE_PNG == config.fileTypeOption ||
       CAPTURE_FITS == config.fileTypeOption )) {
@@ -805,129 +802,50 @@ CaptureWidget::getOutputHandler ( void )
 void
 CaptureWidget::enableOutputFormats( int fmt )
 {
-    // FIXME this needs accurately implemented
-    if (OA_ISBAYER(fmt)) {
-        enableSERCapture(0);
-        enableTIFFCapture(0);
-        enablePNGCapture(0);
-        enableFITSCapture(1);
-        enableMOVCapture(0);
+    disconnect ( typeMenu, SIGNAL( currentIndexChanged ( int )), this,
+            SLOT( fileTypeChanged ( int )));
+
+    const int currentFormat = typeMenu->itemData(typeMenu->currentIndex()).toInt();
+    for ( int i = 0; i < typeMenu->count();) {
+        typeMenu->removeItem(i);
     }
-    if (OA_ISGREYSCALE(fmt) || OA_ISRGB(fmt)) {
-        enableSERCapture(1);
-        enableTIFFCapture(1);
-        enablePNGCapture(1);
-        enableFITSCapture(1);
-        enableMOVCapture(1);
+    std::cerr << "Old file format: " << fileFormats[currentFormat].toStdString() << "\n";
+    std::cerr << "Available file formats: ";
+    for ( int i = 1; i < MAX_FILE_FORMATS; i++ ) {
+        switch(i) {
+            case CAPTURE_AVI:
+            case CAPTURE_FITS:
+            case CAPTURE_RAW:
+                std::cerr << fileFormats[i].toStdString() << " ";
+                typeMenu->addItem ( fileFormats[i], QVariant(i) );
+                break;
+            case CAPTURE_SER:
+            case CAPTURE_TIFF:
+            case CAPTURE_PNG:
+            case CAPTURE_MOV:
+                if (!OA_ISBAYER(fmt)) {
+                    std::cerr << fileFormats[i].toStdString() << " ";
+                    typeMenu->addItem ( fileFormats[i], QVariant(i) );
+                }
+                break;
+        }
     }
+    std::cerr << "\n";
+    const int indexOfSameFormat = typeMenu->findData ( QVariant(currentFormat) );
+    const int newFormat = typeMenu->itemData(typeMenu->currentIndex()).toInt();
+    std::cerr << "New file format: " << fileFormats[newFormat].toStdString() << "\n";
+
+    disconnect ( forceFileTypeDisabledWarning, SIGNAL( valueChanged ( int )), this,
+            SLOT( fileTypeDisabled ( int )));
+    forceFileTypeDisabledWarning->setValue(0);
+    connect ( forceFileTypeDisabledWarning, SIGNAL( valueChanged ( int )), this,
+            SLOT( fileTypeDisabled ( int )));
+    if (indexOfSameFormat == -1 ) forceFileTypeDisabledWarning->setValue(currentFormat);
+
+    connect ( typeMenu, SIGNAL( currentIndexChanged ( int )), this,
+            SLOT( fileTypeChanged ( int )));
+    typeMenu->setCurrentIndex((indexOfSameFormat != -1) ? indexOfSameFormat : 0);
 }
-
-void
-CaptureWidget::enableSERCapture ( int state )
-{
-  if ( haveSER && !state ) {
-    typeMenu->removeItem ( CAPTURE_SER - 1 );
-  }
-  if ( !haveSER && state ) {
-    QVariant v( CAPTURE_SER );
-    typeMenu->insertItem ( CAPTURE_SER - 1, fileFormats[ CAPTURE_SER ], v );
-  }
-  haveSER = state;
-}
-
-
-void
-CaptureWidget::enableTIFFCapture ( int state )
-{
-  int posn;
-
-  posn = CAPTURE_TIFF - 1 - ( haveSER ? 0 : 1 );
-
-  if ( haveTIFF && !state ) {
-    if ( typeMenu->currentIndex() == CAPTURE_TIFF - 1 ) {
-      QMessageBox::warning ( this, APPLICATION_NAME,
-        tr ( "TIFF output format has been disabled" ));
-    }
-    typeMenu->removeItem ( posn );
-  }
-  if ( !haveTIFF && state ) {
-    QVariant v( CAPTURE_TIFF );
-    typeMenu->insertItem ( posn, fileFormats[ CAPTURE_TIFF ], v );
-  }
-  haveTIFF = state;
-}
-
-
-void
-CaptureWidget::enablePNGCapture ( int state )
-{
-  int posn;
-
-  posn = CAPTURE_PNG - 1 - ( haveSER ? 0 : 1 ) - ( haveTIFF ? 0 : 1 );
-
-  if ( havePNG && !state ) {
-    if ( typeMenu->currentIndex() == CAPTURE_PNG - 1 ) {
-      QMessageBox::warning ( this, APPLICATION_NAME,
-        tr ( "PNG output format has been disabled" ));
-    }
-    typeMenu->removeItem ( posn );
-  }
-  if ( !havePNG && state ) {
-    QVariant v( CAPTURE_PNG );
-    typeMenu->insertItem ( posn, fileFormats[ CAPTURE_PNG ], v );
-  }
-  havePNG = state;
-}
-
-void
-CaptureWidget::enableFITSCapture ( int state )
-{
-#ifdef HAVE_LIBCFITSIO
-  int posn;
-
-  posn = CAPTURE_FITS - 1 - ( haveTIFF ? 0 : 1 ) - ( haveSER ? 0 : 1 ) -
-      ( havePNG ? 0 : 1 );
-
-  if ( haveFITS && !state ) {
-    if ( typeMenu->currentIndex() == posn ) {
-      QMessageBox::warning ( this, APPLICATION_NAME,
-        tr ( "FITS output format has been disabled" ));
-    }
-    typeMenu->removeItem ( posn );
-  }
-  if ( !haveFITS && state ) {
-    QVariant v( CAPTURE_FITS );
-    typeMenu->insertItem ( posn, fileFormats[ CAPTURE_FITS ], v );
-  }
-  haveFITS = state;
-#endif
-  return;
-}
-
-
-void
-CaptureWidget::enableMOVCapture ( int state )
-{
-  int posn;
-
-  posn = CAPTURE_MOV - 1 - ( haveFITS ? 0 : 1 ) - ( haveTIFF ? 0 : 1 ) -
-      ( haveSER ? 0 : 1 ) - ( havePNG ? 0 : 1 );
-
-  if ( haveMOV && !state ) {
-    if ( typeMenu->currentIndex() == posn ) {
-      QMessageBox::warning ( this, APPLICATION_NAME,
-        tr ( "MOV output format has been disabled" ));
-    }
-    typeMenu->removeItem ( posn );
-  }
-  if ( !haveMOV && state ) {
-    QVariant v( CAPTURE_MOV );
-    typeMenu->insertItem ( posn, fileFormats[ CAPTURE_MOV ], v );
-  }
-  haveMOV = state;
-  return;
-}
-
 
 void
 CaptureWidget::setNewCaptureDirectory ( void )

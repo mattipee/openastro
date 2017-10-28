@@ -73,11 +73,6 @@ class CaptureWidget : public QGroupBox
     void		setSlotCount ( int );
 
   private:
-    void		enableSERCapture ( int );
-    void		enableTIFFCapture ( int );
-    void		enablePNGCapture ( int );
-    void		enableFITSCapture ( int );
-    void		enableMOVCapture ( int );
     void		doStartRecording ( int );
     void		writeSettings ( OutputHandler* );
     QComboBox*		limitTypeMenu;
@@ -110,11 +105,8 @@ class CaptureWidget : public QGroupBox
     QPushButton*	fileListButton;
     OutputHandler*	outputHandler;
     QIntValidator*	countValidator;
-    int			haveTIFF;
-    int			havePNG;
-    int			haveSER;
-    int			haveFITS;
-    int			haveMOV;
+    QSpinBox*      forceFileTypeDisabledWarning; // HACK I don't understand signals
+
     QLineEdit*		framesInputBox;
     QLineEdit*		secondsInputBox;
     int			filterSequenceRemaining;
@@ -130,6 +122,7 @@ class CaptureWidget : public QGroupBox
   public slots:
     void		showLimitInputBox ( int );
     void		fileTypeChanged ( int );
+    void		fileTypeDisabled ( int );
     void		limitTypeChanged ( int );
     void		startRecording ( void );
     void		pauseRecording ( void );
