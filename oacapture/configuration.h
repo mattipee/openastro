@@ -99,6 +99,7 @@ typedef struct
   int			derotate;
   int			flipX;
   int			flipY;
+  int           previewOutput;
   int			demosaicPreview;
   int			greyscalePreview;
 

@@ -56,44 +56,19 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   dummyForceDataChanged = new QCheckBox("HACK!!!!");
 
   cfaLabel = new QLabel ( tr ( "Bayer format" ));
-  cfaButtons = new QButtonGroup ( this );
-  rggbButton = new QRadioButton ( tr ( "RGGB" ));
-  bggrButton = new QRadioButton ( tr ( "BGGR" ));
-  grbgButton = new QRadioButton ( tr ( "GRBG" ));
-  gbrgButton = new QRadioButton ( tr ( "GBRG" ));
-  autoButton = new QRadioButton ( tr ( "Auto" ));
-  rggbButton->setIcon ( QIcon ( ":/qt-icons/RGGB.png" ));
-  bggrButton->setIcon ( QIcon ( ":/qt-icons/BGGR.png" ));
-  grbgButton->setIcon ( QIcon ( ":/qt-icons/GRBG.png" ));
-  gbrgButton->setIcon ( QIcon ( ":/qt-icons/GBRG.png" ));
-  autoButton->setChecked(true);
-
-  cfaButtons->addButton ( rggbButton );
-  cfaButtons->addButton ( bggrButton );
-  cfaButtons->addButton ( grbgButton );
-  cfaButtons->addButton ( gbrgButton );
-  cfaButtons->addButton ( autoButton );
+  cfaPatternMenu = new QComboBox(this);
+  cfaPatternMenu->addItem( tr ( "Auto" ), QVariant ( OA_DEMOSAIC_AUTO ));
+  cfaPatternMenu->addItem( QIcon ( ":/qt-icons/RGGB.png" ), tr ( "RGGB" ), QVariant ( OA_DEMOSAIC_RGGB ));
+  cfaPatternMenu->addItem( QIcon ( ":/qt-icons/BGGR.png" ), tr ( "BGGR" ), QVariant ( OA_DEMOSAIC_BGGR ));
+  cfaPatternMenu->addItem( QIcon ( ":/qt-icons/GRBG.png" ), tr ( "GRBG" ), QVariant ( OA_DEMOSAIC_GRBG ));
+  cfaPatternMenu->addItem( QIcon ( ":/qt-icons/GBRG.png" ), tr ( "GBRG" ), QVariant ( OA_DEMOSAIC_GRBG ));
 
   methodLabel = new QLabel ( tr ( "Demosaic method" ));
-  methodButtons = new QButtonGroup ( this );
-  nnButton = new QRadioButton ( tr ( "Nearest Neighbour" ));
-  bilinearButton = new QRadioButton ( tr ( "Bilinear" ));
-  smoothHueButton = new QRadioButton ( tr ( "Smooth Hue" ));
-  vngButton = new QRadioButton ( tr ( "VNG" ));
-  nnButton->setChecked ( config.demosaic.method ==
-      OA_DEMOSAIC_NEAREST_NEIGHBOUR ? 1 : 0 );
-  bilinearButton->setChecked ( config.demosaic.method ==
-      OA_DEMOSAIC_BILINEAR ? 1 : 0 );
-  smoothHueButton->setChecked ( config.demosaic.method ==
-      OA_DEMOSAIC_SMOOTH_HUE ? 1 : 0 );
-  vngButton->setChecked ( config.demosaic.method ==
-      OA_DEMOSAIC_VNG ? 1 : 0 );
-
-  methodButtons->addButton ( nnButton );
-  methodButtons->addButton ( bilinearButton );
-  methodButtons->addButton ( smoothHueButton );
-  methodButtons->addButton ( vngButton );
-
+  methodMenu = new QComboBox(this);
+  methodMenu->addItem( tr ( "Nearest Neighbour" ), QVariant ( OA_DEMOSAIC_NEAREST_NEIGHBOUR ));
+  methodMenu->addItem( tr ( "Bilinear" ), QVariant ( OA_DEMOSAIC_BILINEAR ));
+  methodMenu->addItem( tr ( "Smooth Hue" ), QVariant ( OA_DEMOSAIC_SMOOTH_HUE ));
+  methodMenu->addItem( tr ( "VNG" ), QVariant ( OA_DEMOSAIC_VNG ));
 
 
 
@@ -108,17 +83,10 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   box->addWidget(doGreyscaleCheckbox);
   box->addSpacing ( 15 );
   box->addWidget ( cfaLabel );
-  box->addWidget ( rggbButton );
-  box->addWidget ( bggrButton );
-  box->addWidget ( grbgButton );
-  box->addWidget ( gbrgButton );
-  box->addWidget ( autoButton );
+  box->addWidget ( cfaPatternMenu );
   box->addSpacing ( 15 );
   box->addWidget ( methodLabel );
-  box->addWidget ( nnButton );
-  box->addWidget ( bilinearButton );
-  box->addWidget ( smoothHueButton );
-  box->addWidget ( vngButton );
+  box->addWidget ( methodMenu );
   box->addStretch ( 1 );
 
   setLayout ( box );
@@ -135,9 +103,9 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
       SLOT ( updateDoProcessing(int)));
   connect ( doDemosaicCheckbox, SIGNAL ( stateChanged ( int )), this,
       SLOT ( selectivelyControlDemosaic()));
-  connect ( cfaButtons, SIGNAL ( buttonClicked ( int )), parent,
+  connect ( cfaPatternMenu, SIGNAL ( currentIndexChanged ( int )), parent,
       SLOT ( dataChanged()));
-  connect ( methodButtons, SIGNAL ( buttonClicked ( int )), parent,
+  connect ( methodMenu, SIGNAL ( currentIndexChanged ( int )), parent,
       SLOT ( dataChanged()));
   connect ( dummyForceDataChanged, SIGNAL ( stateChanged ( int )), parent,
       SLOT ( dataChanged()));
@@ -162,46 +130,13 @@ OutputSettings::storeSettings ( void )
   config.demosaic.demosaicOutput = doDemosaicCheckbox->isChecked() ? 1 : 0;
   //config.greyscale = doGreyscaleCheckbox->isChecked() ? 1 : 0;
 
-  if ( rggbButton->isChecked()) {
-    config.demosaic.cfaPattern = OA_DEMOSAIC_RGGB;
-  }
-  if ( bggrButton->isChecked()) {
-    config.demosaic.cfaPattern = OA_DEMOSAIC_BGGR;
-  }
-  if ( grbgButton->isChecked()) {
-    config.demosaic.cfaPattern = OA_DEMOSAIC_GRBG;
-  }
-  if ( gbrgButton->isChecked()) {
-    config.demosaic.cfaPattern = OA_DEMOSAIC_GBRG;
-  }
-  if ( autoButton->isChecked()) {
-    config.demosaic.cfaPattern = OA_DEMOSAIC_AUTO;
-  }
-  if ( nnButton->isChecked()) {
-    config.demosaic.method = OA_DEMOSAIC_NEAREST_NEIGHBOUR;
-  }
-  if ( bilinearButton->isChecked()) {
-    config.demosaic.method = OA_DEMOSAIC_BILINEAR;
-  }
-  if ( smoothHueButton->isChecked()) {
-    config.demosaic.method = OA_DEMOSAIC_SMOOTH_HUE;
-  }
-  if ( vngButton->isChecked()) {
-    config.demosaic.method = OA_DEMOSAIC_VNG;
-  }
+  config.demosaic.cfaPattern = cfaPatternMenu->itemData(
+      cfaPatternMenu->currentIndex()).toInt();
+
+  config.demosaic.method = methodMenu->itemData(
+      methodMenu->currentIndex()).toInt();
 }
 
-
-void
-OutputSettings::loadSettings ( void )
-{
-  
-  rggbButton->setChecked ( config.demosaic.cfaPattern == OA_DEMOSAIC_RGGB ? 1 : 0 );
-  bggrButton->setChecked ( config.demosaic.cfaPattern == OA_DEMOSAIC_BGGR ? 1 : 0 );
-  grbgButton->setChecked ( config.demosaic.cfaPattern == OA_DEMOSAIC_GRBG ? 1 : 0 );
-  gbrgButton->setChecked ( config.demosaic.cfaPattern == OA_DEMOSAIC_GBRG ? 1 : 0 );
-  autoButton->setChecked ( config.demosaic.cfaPattern == OA_DEMOSAIC_AUTO ? 1 : 0 );
-}
 
 void OutputSettings::updateDoProcessing(int index)
 {
@@ -215,60 +150,22 @@ void OutputSettings::updateDoProcessing(int index)
   
     const bool mustDoGreyscale = OA_ISGREYSCALE(output_format) && !OA_ISGREYSCALE(config.imagePixelFormat);
 
-    rggbButton->setEnabled(doDemosaic);
-    bggrButton->setEnabled(doDemosaic);
-    grbgButton->setEnabled(doDemosaic);
-    gbrgButton->setEnabled(doDemosaic);
-    autoButton->setEnabled(doDemosaic);
-    rggbButton->setChecked(false);
-    bggrButton->setChecked(false);
-    grbgButton->setChecked(false);
-    gbrgButton->setChecked(false);
-/*
-    if (dataChanged && OA_ISBAYER(config.imagePixelFormat) && !OA_ISBAYER(output_format))
-    {
-        switch(OA_CFA_PATTERN(config.imagePixelFormat)) {
-            case OA_DEMOSAIC_RGGB:
-                rggbButton->setChecked(true);
-                break;
-            case OA_DEMOSAIC_BGGR:
-                bggrButton->setChecked(true);
-                break;
-            case OA_DEMOSAIC_GRBG:
-                grbgButton->setChecked(true);
-                break;
-            case OA_DEMOSAIC_GBRG:
-                gbrgButton->setChecked(true);
-                break;
-            default:
-                autoButton->setChecked(true);
-        }
-    } else */if (!OA_ISBAYER(config.imagePixelFormat) || OA_ISBAYER(output_format)) {
-      autoButton->setChecked(true);
+    cfaPatternMenu->setEnabled(doDemosaic);
+    
+    cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData(
+        (!OA_ISBAYER(config.imagePixelFormat) || OA_ISBAYER(output_format))
+        ? OA_DEMOSAIC_AUTO
+        : config.demosaic.cfaPattern ));
+    /*
+    if (!OA_ISBAYER(config.imagePixelFormat) || OA_ISBAYER(output_format)) {
+      cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData( OA_DEMOSAIC_AUTO ) )
     } else {
-        switch(config.demosaic.cfaPattern) {
-            case OA_DEMOSAIC_RGGB:
-                rggbButton->setChecked(true);
-                break;
-            case OA_DEMOSAIC_BGGR:
-                bggrButton->setChecked(true);
-                break;
-            case OA_DEMOSAIC_GRBG:
-                grbgButton->setChecked(true);
-                break;
-            case OA_DEMOSAIC_GBRG:
-                gbrgButton->setChecked(true);
-                break;
-            default:
-                autoButton->setChecked(true);
-        }
+      cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData( config.demosaic.cfaPattern ) )
     }
+    */
 
-    methodLabel->setEnabled(doDemosaic);
-    nnButton->setEnabled(doDemosaic);
-    bilinearButton->setEnabled(doDemosaic);
-    smoothHueButton->setEnabled(doDemosaic);
-    vngButton->setEnabled(doDemosaic);
+    methodMenu->setEnabled(doDemosaic);
+    methodMenu->setCurrentIndex ( methodMenu->findData( config.demosaic.method ) );
 
     doDemosaicCheckbox->setChecked(doDemosaic);
     doDemosaicCheckbox->setEnabled(canDoDemosaic && !mustDoDemosaic);
@@ -285,17 +182,9 @@ void OutputSettings::selectivelyControlDemosaic(void)
     int output_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
 
     const bool doDemosaic = doDemosaicCheckbox->isChecked();
-   
-    rggbButton->setEnabled(doDemosaic);
-    bggrButton->setEnabled(doDemosaic);
-    grbgButton->setEnabled(doDemosaic);
-    gbrgButton->setEnabled(doDemosaic);
-    autoButton->setEnabled(doDemosaic);
-    methodLabel->setEnabled(doDemosaic);
-    nnButton->setEnabled(doDemosaic);
-    bilinearButton->setEnabled(doDemosaic);
-    smoothHueButton->setEnabled(doDemosaic);
-    vngButton->setEnabled(doDemosaic);
+  
+    cfaPatternMenu->setEnabled( doDemosaic );
+    methodMenu->setEnabled( doDemosaic ); 
 
     config.demosaic.demosaicOutput = doDemosaic;
 

@@ -441,18 +441,18 @@ PreviewWidget::updatePreview ( void* args, void* imageData, int length )
       self->previewBuffer.flip(self->flipX, self->flipY);
 
       // Demosaic the preview
-      if ( config.demosaicPreview ) {
+      if ( config.previewOutput ? config.demosaic.demosaicOutput : config.demosaicPreview ) {
         self->previewBuffer.ensure8BitGreyOrRaw(); // FIXME can't demosaic 10/16bit GREY
         self->previewBuffer.demosaic(cfaPattern, config.demosaic.method);
       }
 
       // Convert to greyscale (either original, or demosaicked if that happened)
-      if ( config.greyscalePreview ) {
+      if ( config.previewOutput ? OA_ISGREYSCALE(config.targetPixelFormat) : config.greyscalePreview ) {
         self->previewBuffer.greyscale(OA_GREYSCALE_FMT(self->previewBuffer.getPixelFormat()));
       }
 
       // Boost preview image
-      if ( config.boost.enable ) {
+      if ( !config.previewOutput && config.boost.enable ) {
         self->previewBuffer.boost(config.boost.stretch, config.boost.sharpen,
             config.boost.multiply, config.boost.gamma, config.boost.algorithm );
       }

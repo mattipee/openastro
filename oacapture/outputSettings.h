@@ -43,7 +43,6 @@ class OutputSettings : public QWidget
     			OutputSettings ( QWidget* );
     			~OutputSettings();
     void		storeSettings ( void );
-    void		loadSettings ( void );
 
   public slots:
     void updateDoProcessing(int index);
@@ -61,17 +60,8 @@ class OutputSettings : public QWidget
     QCheckBox* dummyForceDataChanged;// don't understand qt signals... this is a HACK!
 
     QLabel*             cfaLabel;
-    QButtonGroup*       cfaButtons;
-    QRadioButton*       rggbButton;
-    QRadioButton*       bggrButton;
-    QRadioButton*       grbgButton;
-    QRadioButton*       gbrgButton;
-    QRadioButton*       autoButton;
+    QComboBox*          cfaPatternMenu;
     QLabel*             methodLabel;
-    QButtonGroup*       methodButtons;
-    QRadioButton*       nnButton;
-    QRadioButton*       bilinearButton;
-    QRadioButton*       smoothHueButton;
-    QRadioButton*       vngButton;
+    QComboBox*          methodMenu;
 
 };

@@ -155,6 +155,7 @@ class MainWindow : public QMainWindow
     QAction*		derotate;
     QAction*		flipX;
     QAction*		flipY;
+    QAction*        previewOutputOpt;
     QAction*		demosaicOpt;
     QAction*		greyscaleOpt;
     QAction*		boostOpt;
@@ -226,6 +227,7 @@ class MainWindow : public QMainWindow
     void		enableFocusAid ( void );
     void		enableFlipX ( void );
     void		enableFlipY ( void );
+    void        enablePreviewOutput( void );
     void		enableDemosaic ( void );
     void		enableGreyscale ( void );
     void		enableBoost ( void );

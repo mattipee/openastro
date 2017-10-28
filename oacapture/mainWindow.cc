@@ -1395,6 +1395,12 @@ MainWindow::createMenus ( void )
   flipY->setChecked ( config.flipY );
   connect ( flipY, SIGNAL( changed()), this, SLOT( enableFlipY()));
 
+  previewOutputOpt = new QAction ( /*QIcon ( ":/qt-icons/mosaic.png" ),*/
+      tr ( "Preview output" ), this );
+  previewOutputOpt->setCheckable ( true );
+  previewOutputOpt->setChecked ( config.previewOutput );
+  connect ( previewOutputOpt, SIGNAL( changed()), this, SLOT( enablePreviewOutput()));
+
   demosaicOpt = new QAction ( QIcon ( ":/qt-icons/mosaic.png" ),
       tr ( "Demosaic" ), this );
   demosaicOpt->setCheckable ( true );
@@ -1435,6 +1441,8 @@ MainWindow::createMenus ( void )
 #endif
   optionsMenu->addAction ( flipX );
   optionsMenu->addAction ( flipY );
+  optionsMenu->addSeparator ( );
+  optionsMenu->addAction ( previewOutputOpt );
   optionsMenu->addAction ( demosaicOpt );
   optionsMenu->addAction ( greyscaleOpt );
   optionsMenu->addAction ( boostOpt );
@@ -2145,6 +2153,15 @@ MainWindow::mosaicFlipWarning ( void )
   }
 }
 
+void
+MainWindow::enablePreviewOutput ( void )
+{
+    config.previewOutput = previewOutputOpt->isChecked();
+    demosaicOpt->setEnabled(!config.previewOutput);
+    greyscaleOpt->setEnabled(!config.previewOutput);
+    boostOpt->setEnabled(!config.previewOutput);
+}
+
 
 void
 MainWindow::enableDemosaic ( void )
@@ -2156,7 +2173,7 @@ MainWindow::enableDemosaic ( void )
 void
 MainWindow::enableGreyscale ( void )
 {
-    config.greyscalePreview = demosaicOpt->isChecked();
+    config.greyscalePreview = greyscaleOpt->isChecked();
 }
 
 
