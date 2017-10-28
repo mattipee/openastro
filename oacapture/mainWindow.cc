@@ -1652,13 +1652,6 @@ MainWindow::connectCamera ( int deviceIndex )
   state.controlWidget->disableAutoControls();
   state.histogramOn = oldHistogramState;
   oldHistogramState = -1;
-
-  format = state.camera->videoFramePixelFormat();
-  // TODO TODO
-  // find a better way of configuring availability of capture formats
-  // this logic is repeated half a dozen times
-  // captureWidget should decide
-  state.captureWidget->enableOutputFormats(config.targetPixelFormat);
 }
 
 
