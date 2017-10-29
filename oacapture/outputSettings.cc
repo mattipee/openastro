@@ -199,6 +199,30 @@ void OutputSettings::switchSimpleAdvanced(int state)
     cfaPatternMenu->setVisible(!switchToSimple);
     methodLabel->setVisible(!switchToSimple);
     methodMenu->setVisible(!switchToSimple);
+
+    if (switchToSimple) {
+        if (doDemosaicCheckbox->isChecked()) {
+            const int current_cfa  = cfaPatternMenu->itemData(cfaPatternMenu->currentIndex()).toInt();
+            const int current_method = methodMenu->itemData(methodMenu->currentIndex()).toInt();
+
+            bool warn = false;
+            std::string warning = "TODO";
+            if (current_cfa != OA_DEMOSAIC_AUTO) {
+                warn = true;
+                warning += " CFA";
+                cfaPatternMenu->setCurrentIndex(cfaPatternMenu->findData( OA_DEMOSAIC_AUTO ));
+            }
+            if (current_method != OA_DEMOSAIC_NEAREST_NEIGHBOUR) {
+                warn = true;
+                warning += " METHOD";
+                methodMenu->setCurrentIndex(methodMenu->findData( OA_DEMOSAIC_NEAREST_NEIGHBOUR ));
+            }
+
+            if (warn) {
+                QMessageBox::warning ( this, APPLICATION_NAME, warning.c_str());
+            }
+        }
+    }
 }
 
 void OutputSettings::updateDoProcessingSimple(int index)
