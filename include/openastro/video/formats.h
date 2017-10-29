@@ -281,6 +281,36 @@ static int OA_CFA_PATTERN(int x) {
     }
 }
 
+static int OA_TO_BAYER8(int x) {
+    switch(OA_CFA_PATTERN(x)) {
+        case OA_DEMOSAIC_RGGB:
+            return OA_PIX_FMT_RGGB8;
+        case OA_DEMOSAIC_BGGR:
+            return OA_PIX_FMT_BGGR8;
+        case OA_DEMOSAIC_GRBG:
+            return OA_PIX_FMT_GRBG8;
+        case OA_DEMOSAIC_GBRG:
+            return OA_PIX_FMT_GBRG8;
+        default:
+            return OA_PIX_FMT_NONE;
+    }
+}
+
+static int OA_TO_BAYER16(int x) {
+    switch(OA_CFA_PATTERN(x)) {
+        case OA_DEMOSAIC_RGGB:
+            return OA_PIX_FMT_RGGB16LE;
+        case OA_DEMOSAIC_BGGR:
+            return OA_PIX_FMT_BGGR16LE;
+        case OA_DEMOSAIC_GRBG:
+            return OA_PIX_FMT_GRBG16LE;
+        case OA_DEMOSAIC_GBRG:
+            return OA_PIX_FMT_GBRG16LE;
+        default:
+            return OA_PIX_FMT_NONE;
+    }
+}
+
 static int OA_CAN_CONVERT_PIX_FMT(int I, int O)
 {
     if (!O || !I)

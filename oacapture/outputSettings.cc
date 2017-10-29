@@ -227,7 +227,35 @@ void OutputSettings::switchSimpleAdvanced(int state)
 
 void OutputSettings::updateDoProcessingSimple(int index)
 {
-    // TODO
+    if (colourButton->isChecked()) {
+        if (sixteenBitButton->isChecked()) {
+                QMessageBox::warning ( this, APPLICATION_NAME, "Can't output 16bit colour, reverting to 8bit");
+                eightBitButton->setChecked(true);
+        }
+    }
+
+    const bool colour = colourButton->isChecked();
+    const bool grey = greyButton->isChecked();
+    const bool raw = rawButton->isChecked();
+    const bool eightBit = eightBitButton->isChecked();
+
+    //TODO calculate correct output format
+    int output_format = 0;
+    if (colour && eightBit)
+        output_format = OA_PIX_FMT_RGB24;
+    if (grey && eightBit)
+        output_format = OA_PIX_FMT_GREY8;
+    if (grey && !eightBit)
+        output_format = OA_PIX_FMT_GREY16LE;
+    if (raw && eightBit)
+        output_format = OA_TO_BAYER8(config.imagePixelFormat);
+    if (raw && !eightBit)
+        output_format = OA_TO_BAYER16(config.imagePixelFormat);
+
+    int outputFormatIndex = outputFormatMenu->findData(output_format);
+    std::cerr << "Simple implies output format " << OA_PIX_FMT_STRING(output_format) << "@" << outputFormatIndex;
+    outputFormatMenu->setCurrentIndex(outputFormatIndex);
+    updateDoProcessing(outputFormatIndex);
 }
 
 void OutputSettings::updateDoProcessing(int index)
@@ -258,17 +286,21 @@ void OutputSettings::updateDoProcessing(int index)
 
 
 
-
-
+    colourButton->setEnabled(canDoDemosaic || OA_ISRGB(config.imagePixelFormat));
     colourButton->setChecked(OA_ISRGB(output_format));
+
     greyButton->setChecked(OA_ISGREYSCALE(output_format));
+    greyButton->setEnabled(true);
+
+    rawButton->setEnabled(canDoDemosaic);
     rawButton->setChecked(OA_ISBAYER(output_format));
+
     eightBitButton->setChecked(OA_BYTES_PER_PIXEL(output_format) == 1 ||
                                OA_BYTES_PER_PIXEL(output_format) == 3);
     sixteenBitButton->setChecked(OA_BYTES_PER_PIXEL(output_format) == 2 ||
                                OA_BYTES_PER_PIXEL(output_format) == 6);
 
-
+    switchSimpleAdvanced(advancedBox->isChecked());
 
 
 
