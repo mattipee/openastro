@@ -138,7 +138,12 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   setLayout ( box );
 
 
-
+  connect ( colourModeButtons, SIGNAL ( buttonClicked ( int )), this,
+      SLOT ( updateDoProcessingSimple(int)));
+  connect ( bitDepthButtons, SIGNAL ( buttonClicked ( int )), this,
+      SLOT ( updateDoProcessingSimple(int)));
+  connect ( advancedBox, SIGNAL ( stateChanged ( int )), this,
+      SLOT ( switchSimpleAdvanced(int)));
   connect ( outputFormatMenu, SIGNAL ( currentIndexChanged ( int )), this,
       SLOT ( updateDoProcessing(int)));
   connect ( doDemosaicCheckbox, SIGNAL ( stateChanged ( int )), this,
@@ -176,6 +181,30 @@ OutputSettings::storeSettings ( void )
       methodMenu->currentIndex()).toInt();
 }
 
+void OutputSettings::switchSimpleAdvanced(int state)
+{
+    const bool switchToSimple = state==0;
+
+    colourButton->setEnabled(switchToSimple);
+    greyButton->setEnabled(switchToSimple);
+    rawButton->setEnabled(switchToSimple);
+    eightBitButton->setEnabled(switchToSimple);
+    sixteenBitButton->setEnabled(switchToSimple);
+
+    outputFormatLabel->setVisible(!switchToSimple);
+    outputFormatMenu->setVisible(!switchToSimple);
+    doDemosaicCheckbox->setVisible(!switchToSimple);
+    doGreyscaleCheckbox->setVisible(!switchToSimple);
+    cfaLabel->setVisible(!switchToSimple);
+    cfaPatternMenu->setVisible(!switchToSimple);
+    methodLabel->setVisible(!switchToSimple);
+    methodMenu->setVisible(!switchToSimple);
+}
+
+void OutputSettings::updateDoProcessingSimple(int index)
+{
+    // TODO
+}
 
 void OutputSettings::updateDoProcessing(int index)
 {

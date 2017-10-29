@@ -45,6 +45,8 @@ class OutputSettings : public QWidget
     void		storeSettings ( void );
 
   public slots:
+    void switchSimpleAdvanced(int state);
+    void updateDoProcessingSimple(int index);
     void updateDoProcessing(int index);
     void selectivelyControlDemosaic(int);
 
