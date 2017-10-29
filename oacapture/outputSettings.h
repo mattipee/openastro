@@ -51,6 +51,19 @@ class OutputSettings : public QWidget
   private:
     QVBoxLayout*	box;
 
+    QLabel*         colourModeLabel;
+    QButtonGroup*	colourModeButtons;
+    QRadioButton*	colourButton;
+    QRadioButton*	greyButton;
+    QRadioButton*	rawButton;
+    QLabel*         bitDepthLabel;
+    QButtonGroup*	bitDepthButtons;
+    QRadioButton*	eightBitButton;
+    QRadioButton*	sixteenBitButton;
+    QCheckBox*      advancedBox;
+
+
+
     QLabel* inputFormatLabel;
     QLabel* inputFormatValue;
     QLabel* outputFormatLabel;

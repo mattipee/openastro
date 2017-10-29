@@ -37,6 +37,33 @@ extern "C" {
 
 OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
 {
+  colourModeLabel = new QLabel("Colour mode");
+  colourModeButtons = new QButtonGroup ( this );
+  colourButton = new QRadioButton ( tr ( "RGB" ));
+  greyButton = new QRadioButton ( tr ( "Greyscale" ));
+  rawButton = new QRadioButton ( tr ( "Raw bayer" ));
+  colourModeButtons->addButton ( colourButton );
+  colourModeButtons->addButton ( greyButton );
+  colourModeButtons->addButton ( rawButton );
+
+  bitDepthLabel = new QLabel("Bit depth");
+  bitDepthButtons = new QButtonGroup ( this );
+  eightBitButton = new QRadioButton ( tr ( "8bit (24bit RGB)" ));
+  sixteenBitButton = new QRadioButton ( tr ( "16bit (48bit RGB)" ));
+  bitDepthButtons->addButton ( eightBitButton );
+  bitDepthButtons->addButton ( sixteenBitButton );
+
+  advancedBox = new QCheckBox("Advanced");
+  advancedBox->setChecked(true);
+  colourButton->setEnabled(false);
+  greyButton->setEnabled(false);
+  rawButton->setEnabled(false);
+  eightBitButton->setEnabled(false);
+  sixteenBitButton->setEnabled(false);
+
+
+
+
   inputFormatLabel = new QLabel("Input format");
   inputFormatValue = new QLabel(OA_PIX_FMT_STRING(config.imagePixelFormat));
   outputFormatLabel = new QLabel("Select output format");
@@ -83,6 +110,17 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   box = new QVBoxLayout ( this );
   box->addWidget(inputFormatLabel);
   box->addWidget(inputFormatValue);
+  box->addSpacing ( 15 );
+  box->addWidget(colourModeLabel);
+  box->addWidget(colourButton);
+  box->addWidget(greyButton);
+  box->addWidget(rawButton);
+  box->addSpacing ( 15 );
+  box->addWidget(bitDepthLabel);
+  box->addWidget(eightBitButton);
+  box->addWidget(sixteenBitButton);
+  box->addSpacing ( 15 );
+  box->addWidget(advancedBox);
   box->addSpacing ( 15 );
   box->addWidget(outputFormatLabel);
   box->addWidget(outputFormatMenu);
@@ -164,6 +202,22 @@ void OutputSettings::updateDoProcessing(int index)
 
     doGreyscaleCheckbox->setChecked(mustDoGreyscale);
     doGreyscaleCheckbox->setEnabled(false);
+
+
+
+
+
+    colourButton->setChecked(OA_ISRGB(output_format));
+    greyButton->setChecked(OA_ISGREYSCALE(output_format));
+    rawButton->setChecked(OA_ISBAYER(output_format));
+    eightBitButton->setChecked(OA_BYTES_PER_PIXEL(output_format) == 1 ||
+                               OA_BYTES_PER_PIXEL(output_format) == 3);
+    sixteenBitButton->setChecked(OA_BYTES_PER_PIXEL(output_format) == 2 ||
+                               OA_BYTES_PER_PIXEL(output_format) == 6);
+
+
+
+
 
     // first time updateDoProcessing is called is to populate
     // after that, it gets called on change of output format
