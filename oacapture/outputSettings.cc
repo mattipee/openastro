@@ -184,6 +184,7 @@ OutputSettings::storeSettings ( void )
 void OutputSettings::switchSimpleAdvanced(int state)
 {
     const bool switchToSimple = state==0;
+    std::cerr << "in switchSimpleAdvanced " << state << "\n";
 
     colourButton->setEnabled(switchToSimple);
     greyButton->setEnabled(switchToSimple);
@@ -201,12 +202,28 @@ void OutputSettings::switchSimpleAdvanced(int state)
     methodMenu->setVisible(!switchToSimple);
 
     if (switchToSimple) {
+        bool warn = false;
+        std::string warning = "TODO";
+
+        const int current_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
+        const int current_cfa  = cfaPatternMenu->itemData(cfaPatternMenu->currentIndex()).toInt();
+        const int current_method = methodMenu->itemData(methodMenu->currentIndex()).toInt();
+
+        if (OA_ISBAYER(current_format)
+            && OA_CFA_PATTERN(current_format) != OA_CFA_PATTERN(config.imagePixelFormat))
+        {
+            warn = true;
+            warning += " PIX_FMT";
+            int new_format = OA_BYTES_PER_PIXEL(config.imagePixelFormat) == 1
+                             ? OA_TO_BAYER8(OA_CFA_PATTERN(config.imagePixelFormat))
+                             : OA_TO_BAYER16(OA_CFA_PATTERN(config.imagePixelFormat));
+            outputFormatMenu->setCurrentIndex(outputFormatMenu->findData(new_format));
+        }
+
         if (doDemosaicCheckbox->isChecked()) {
             const int current_cfa  = cfaPatternMenu->itemData(cfaPatternMenu->currentIndex()).toInt();
             const int current_method = methodMenu->itemData(methodMenu->currentIndex()).toInt();
 
-            bool warn = false;
-            std::string warning = "TODO";
             if (current_cfa != OA_DEMOSAIC_AUTO) {
                 warn = true;
                 warning += " CFA";
@@ -218,15 +235,18 @@ void OutputSettings::switchSimpleAdvanced(int state)
                 methodMenu->setCurrentIndex(methodMenu->findData( OA_DEMOSAIC_NEAREST_NEIGHBOUR ));
             }
 
-            if (warn) {
-                QMessageBox::warning ( this, APPLICATION_NAME, warning.c_str());
-            }
+        }
+
+        if (warn) {
+            QMessageBox::warning ( this, APPLICATION_NAME, warning.c_str());
         }
     }
 }
 
 void OutputSettings::updateDoProcessingSimple(int index)
 {
+    std::cerr << "in updateDoProcessingSimple " << index << "\n";
+
     if (colourButton->isChecked()) {
         if (sixteenBitButton->isChecked()) {
                 QMessageBox::warning ( this, APPLICATION_NAME, "Can't output 16bit colour, reverting to 8bit");
@@ -260,6 +280,8 @@ void OutputSettings::updateDoProcessingSimple(int index)
 
 void OutputSettings::updateDoProcessing(int index)
 {
+    std::cerr << "in updateDoProcessing " << index << "\n";
+
     int output_format = outputFormatMenu->itemData(index).toInt();
 
     const bool canDoDemosaic = OA_ISBAYER(config.imagePixelFormat) && !OA_ISBAYER(output_format);
@@ -313,6 +335,7 @@ void OutputSettings::updateDoProcessing(int index)
 
 void OutputSettings::selectivelyControlDemosaic( int doDemosaic )
 {
+    std::cerr << "in selectivelyControlDemosaic " << doDemosaic << "\n";
     config.demosaic.demosaicOutput = doDemosaic;
 
     cfaPatternMenu->setEnabled( doDemosaic );
