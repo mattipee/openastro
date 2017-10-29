@@ -70,6 +70,14 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   methodMenu->addItem( tr ( "Smooth Hue" ), QVariant ( OA_DEMOSAIC_SMOOTH_HUE ));
   methodMenu->addItem( tr ( "VNG" ), QVariant ( OA_DEMOSAIC_VNG ));
 
+  // set values
+  int formatIndex = outputFormatMenu->findData(
+      target_allowed ? config.targetPixelFormat : config.imagePixelFormat );
+  outputFormatMenu->setCurrentIndex ( formatIndex );
+  updateDoProcessing( formatIndex ); // set checkbox state and enable demosaic menus
+
+
+
 
 
   box = new QVBoxLayout ( this );
@@ -92,17 +100,11 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   setLayout ( box );
 
 
-  // set values
-  outputFormatMenu->setCurrentIndex ( outputFormatMenu->findData(
-      target_allowed ? config.targetPixelFormat : config.imagePixelFormat ) );
-  updateDoProcessing(-1); // don't call SettingsWidget::dataChanged
-
-
 
   connect ( outputFormatMenu, SIGNAL ( currentIndexChanged ( int )), this,
       SLOT ( updateDoProcessing(int)));
   connect ( doDemosaicCheckbox, SIGNAL ( stateChanged ( int )), this,
-      SLOT ( selectivelyControlDemosaic()));
+      SLOT ( selectivelyControlDemosaic( int )));
   connect ( cfaPatternMenu, SIGNAL ( currentIndexChanged ( int )), parent,
       SLOT ( dataChanged()));
   connect ( methodMenu, SIGNAL ( currentIndexChanged ( int )), parent,
@@ -128,7 +130,6 @@ OutputSettings::storeSettings ( void )
   state.mainWindow->updateImagePixelFormat();
 
   config.demosaic.demosaicOutput = doDemosaicCheckbox->isChecked() ? 1 : 0;
-  //config.greyscale = doGreyscaleCheckbox->isChecked() ? 1 : 0;
 
   config.demosaic.cfaPattern = cfaPatternMenu->itemData(
       cfaPatternMenu->currentIndex()).toInt();
@@ -140,9 +141,7 @@ OutputSettings::storeSettings ( void )
 
 void OutputSettings::updateDoProcessing(int index)
 {
-    const bool dataChanged = -1 != index;
-
-    int output_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
+    int output_format = outputFormatMenu->itemData(index).toInt();
 
     const bool canDoDemosaic = OA_ISBAYER(config.imagePixelFormat) && !OA_ISBAYER(output_format);
     const bool mustDoDemosaic = canDoDemosaic && OA_ISRGB(output_format);
@@ -156,13 +155,6 @@ void OutputSettings::updateDoProcessing(int index)
         (!OA_ISBAYER(config.imagePixelFormat) || OA_ISBAYER(output_format))
         ? OA_DEMOSAIC_AUTO
         : config.demosaic.cfaPattern ));
-    /*
-    if (!OA_ISBAYER(config.imagePixelFormat) || OA_ISBAYER(output_format)) {
-      cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData( OA_DEMOSAIC_AUTO ) )
-    } else {
-      cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData( config.demosaic.cfaPattern ) )
-    }
-    */
 
     methodMenu->setEnabled(doDemosaic);
     methodMenu->setCurrentIndex ( methodMenu->findData( config.demosaic.method ) );
@@ -173,20 +165,19 @@ void OutputSettings::updateDoProcessing(int index)
     doGreyscaleCheckbox->setChecked(mustDoGreyscale);
     doGreyscaleCheckbox->setEnabled(false);
 
-    if (dataChanged)
-        dummyForceDataChanged->setChecked(!dummyForceDataChanged->isChecked());
+    // first time updateDoProcessing is called is to populate
+    // after that, it gets called on change of output format
+    // first time, dummyForceDataChanged hasn't been connected
+    // so we don't call dataChanged, so next line is a nop.
+    dummyForceDataChanged->setChecked(!dummyForceDataChanged->isChecked());
 }
 
-void OutputSettings::selectivelyControlDemosaic(void)
+void OutputSettings::selectivelyControlDemosaic( int doDemosaic )
 {
-    int output_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
+    config.demosaic.demosaicOutput = doDemosaic;
 
-    const bool doDemosaic = doDemosaicCheckbox->isChecked();
-  
     cfaPatternMenu->setEnabled( doDemosaic );
     methodMenu->setEnabled( doDemosaic ); 
-
-    config.demosaic.demosaicOutput = doDemosaic;
 
     dummyForceDataChanged->setChecked(!dummyForceDataChanged->isChecked());
 }

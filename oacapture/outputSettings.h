@@ -46,7 +46,7 @@ class OutputSettings : public QWidget
 
   public slots:
     void updateDoProcessing(int index);
-    void selectivelyControlDemosaic(void);
+    void selectivelyControlDemosaic(int);
 
   private:
     QVBoxLayout*	box;
