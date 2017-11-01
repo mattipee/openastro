@@ -28,6 +28,7 @@
 #define OPENASTRO_CAMERA_FORMATS_H
 
 #include "../demosaic.h"
+#include <math.h>
 
 #define DEFINE_OA_PIX_FMT(OA_PIX_FMT) \
   OA_PIX_FMT(RGB24) \
@@ -226,6 +227,17 @@ static int OA_ISRGB(int x) {
     }
 }
 
+static int OA_ISRB_SWAPPED(int x) {
+    switch(x) {
+        case OA_PIX_FMT_BGR24:
+        case OA_PIX_FMT_BGR48BE:
+        case OA_PIX_FMT_BGR48LE:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 static int OA_GREYSCALE_FMT(int x) {
   return (OA_BYTES_PER_PIXEL(x) == 1)
         ? OA_PIX_FMT_GREY8
@@ -311,8 +323,69 @@ static int OA_TO_BAYER16(int x) {
     }
 }
 
+enum { OA_CAN_CONVERT = 0,
+       OA_SHOULD_CONVERT = 1 };
+
+static int OA_SHOULD_CONVERT_PIX_FMT(int I, int O)
+{
+    if (!O || !I)
+        return 0; // error
+
+    if (OA_IS_LUM_CHROM(O))
+        return 0; // can't output LUM_CHROME
+
+    if (OA_ISGREYSCALE(O)) {
+        if (OA_BYTES_PER_PIXEL(O) == 2 && !OA_ISLITTLE_ENDIAN(O))
+            return 0; // simple always outputs LE
+
+        if (OA_ISBAYER(I) || OA_ISRGB(I)) {
+            return 1; // can always output GREY, 8 or 16
+        }
+        if (OA_ISGREYSCALE(I))
+            return OA_BYTES_PER_PIXEL(I) >= OA_BYTES_PER_PIXEL(O); // shouldn't output 16 bit grey for 8 bit grey input
+    }
+
+    if (OA_ISBAYER(O)) {
+        if (OA_BYTES_PER_PIXEL(O) == 2 && !OA_ISLITTLE_ENDIAN(O))
+            return 0; // simple always outputs LE, not BE
+
+        if (!OA_ISBAYER(I))
+            return 0; // can't output BAYER if input was not BAYER
+
+        if (OA_ISBAYER10(O))
+            return 0; // can't output BAYER10
+
+        return (OA_CFA_PATTERN(I) == OA_CFA_PATTERN(O)) // shouldn't convert cfa pattern
+            && (ceil(OA_BYTES_PER_PIXEL(I)) >= OA_BYTES_PER_PIXEL(O)); // shouldn't upscale bit depth
+    }
+
+    if (OA_ISRGB(O)) {
+        if (OA_ISRB_SWAPPED(O))
+            return 0; // simple always outputs RGB, not BGR
+
+        if (OA_BYTES_PER_PIXEL(O) == 6 && !OA_ISLITTLE_ENDIAN(O))
+            return 0; // simple always outputs LE
+
+        if (OA_ISGREYSCALE(I))
+            return 0; // shouldn't convert GREY to RGB
+
+        if (OA_ISBAYER(I)) {
+          return (6 == OA_BYTES_PER_PIXEL(O) && (ceil(OA_BYTES_PER_PIXEL(I)) > 1)) // shouldn't upscale bit depth
+               || (3 == OA_BYTES_PER_PIXEL(O));
+        }
+        return OA_BYTES_PER_PIXEL(I) >= OA_BYTES_PER_PIXEL(O); // shouldn't upscale bit depth
+    }
+
+    return 0;
+}
+
 static int OA_CAN_CONVERT_PIX_FMT(int I, int O)
 {
+    // FIXME - this might be useful to reduce logic in this function
+    // FIXME - might make maintenance easier, oth perhaps more obscure
+    //if (OA_SHOULD_CONVERT_PIX_FMT(I,O))
+    //    return 1; // recommended conversion is ok
+    
     if (!O || !I)
         return 0; // error
 
@@ -320,7 +393,7 @@ static int OA_CAN_CONVERT_PIX_FMT(int I, int O)
         return 1; // can always output the input format
 
     if (OA_IS_LUM_CHROM(O))
-        return 0; // can't output LUM_CHROME
+        return 0; // can't output LUM_CHROME FIXME
 
     if (OA_ISGREYSCALE(O))
         return 1; // can always output GREY
@@ -328,44 +401,19 @@ static int OA_CAN_CONVERT_PIX_FMT(int I, int O)
     if (OA_ISBAYER(O)) {
         if (!OA_ISBAYER(I))
             return 0; // can't output BAYER if input was not BAYER
+            // FIXME is it just a case of subsampling a colour image??
 
         if (OA_ISBAYER10(O))
-            return 0; // can't output BAYER10
+            return 0; // can't output BAYER10 FIXME write the transformation
 
-        return (OA_CFA_PATTERN(I) == OA_CFA_PATTERN(O)); // FIXME can't convert cfaPattern
+        return 1; // FIXME write the transformation
+        // naive transformation is just to pix-shift, perhaps wraparound, duplicate or blank?
     }
 
-    if (OA_ISRGB(O)) {
-        if (OA_ISGREYSCALE(I))
-            return 0; // can't convert GREY to RGB
+    if (OA_ISRGB(O))
+        return 1; // FIXME - write GREYtoRGB and XXXtoRGB48
 
-        return (3 == OA_BYTES_PER_PIXEL(O)); // FIXME can't output RGB48
-    }
-
+    // should never reach here
     return 0;
-}
-
-static void OA_POPULATE_CONVERSION_TABLE(int table[][OA_PIX_FMT_MAX+1])
-{
-    int I, O;
-    if (table[0][0] == 1) return;
-    for (I = OA_PIX_FMT_NONE; I<OA_PIX_FMT_MAX; ++I)
-    for (O = OA_PIX_FMT_NONE+1; O<OA_PIX_FMT_MAX; ++O)
-      table[I][O] = OA_CAN_CONVERT_PIX_FMT(I,O);
-    table[0][0] = 1; // "already calculated" flag
-/*
-    for (I = OA_PIX_FMT_NONE; I<OA_PIX_FMT_MAX; ++I) {
-      for (O = OA_PIX_FMT_NONE+1; O<OA_PIX_FMT_MAX; ++O)
-        fprintf(stderr, "%d ", table[I][O]);
-      fprintf(stderr, "\n");
-    }
-*/
-}
-static int* OA_ALLOWED_OUTPUT_PIX_FMT(int x)
-{
-    static int table[OA_PIX_FMT_MAX+1][OA_PIX_FMT_MAX+1];
-    OA_POPULATE_CONVERSION_TABLE(table); // will short circuit if already done
-
-    return table[x];
 }
 #endif	/* OPENASTRO_CAMERA_FORMATS_H */

@@ -54,29 +54,26 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   bitDepthButtons->addButton ( sixteenBitButton );
 
   advancedBox = new QCheckBox("Advanced");
-  advancedBox->setChecked(true);
+/*  advancedBox->setChecked(true);
   colourButton->setEnabled(false);
   greyButton->setEnabled(false);
   rawButton->setEnabled(false);
   eightBitButton->setEnabled(false);
   sixteenBitButton->setEnabled(false);
+*/
 
 
 
-
-  inputFormatLabel = new QLabel("Input format");
-  inputFormatValue = new QLabel(OA_PIX_FMT_STRING(config.imagePixelFormat));
+  inputFormatLabel = new QLabel("Input/output format");
+  inputFormatValue = new QLabel(QString(OA_PIX_FMT_STRING(config.imagePixelFormat)).append(" => ").append(OA_PIX_FMT_STRING(config.targetPixelFormat)));
   outputFormatLabel = new QLabel("Select output format");
 
   outputFormatMenu = new QComboBox(this);
-  int* allowed_output_formats = OA_ALLOWED_OUTPUT_PIX_FMT(config.imagePixelFormat);
-  bool target_allowed = false;
+
   for (int i=OA_PIX_FMT_NONE+1; i<OA_PIX_FMT_MAX; ++i)
   {
-      if (allowed_output_formats[i]) {
-          target_allowed |= (i == config.targetPixelFormat);
+      if (OA_CAN_CONVERT_PIX_FMT(config.imagePixelFormat, i))
           outputFormatMenu->addItem ( OA_PIX_FMT_STRING(i), QVariant ( i ) );
-      }
   }
   doDemosaicCheckbox = new QCheckBox("Do demosaic?", this);
   doGreyscaleCheckbox = new QCheckBox("Convert to greyscale?", this);
@@ -98,10 +95,15 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
   methodMenu->addItem( tr ( "VNG" ), QVariant ( OA_DEMOSAIC_VNG ));
 
   // set values
+  bool canConvert    = OA_CAN_CONVERT_PIX_FMT   (config.imagePixelFormat, config.targetPixelFormat);
+  bool shouldConvert = OA_SHOULD_CONVERT_PIX_FMT(config.imagePixelFormat, config.targetPixelFormat);
+
   int formatIndex = outputFormatMenu->findData(
-      target_allowed ? config.targetPixelFormat : config.imagePixelFormat );
+      canConvert ? config.targetPixelFormat : config.imagePixelFormat );
   outputFormatMenu->setCurrentIndex ( formatIndex );
-  updateDoProcessing( formatIndex ); // set checkbox state and enable demosaic menus
+  advancedFormatChanged( formatIndex ); // set checkbox state and enable demosaic menus
+  advancedBox->setChecked(canConvert && !shouldConvert);
+  advancedCheckboxClicked(advancedBox->isChecked()); // choose simple/advanced
 
 
 
@@ -139,15 +141,15 @@ OutputSettings::OutputSettings ( QWidget* parent ) : QWidget ( parent )
 
 
   connect ( colourModeButtons, SIGNAL ( buttonClicked ( int )), this,
-      SLOT ( updateDoProcessingSimple(int)));
+      SLOT ( simpleSettingsClicked(int)));
   connect ( bitDepthButtons, SIGNAL ( buttonClicked ( int )), this,
-      SLOT ( updateDoProcessingSimple(int)));
+      SLOT ( simpleSettingsClicked(int)));
   connect ( advancedBox, SIGNAL ( stateChanged ( int )), this,
-      SLOT ( switchSimpleAdvanced(int)));
+      SLOT ( advancedCheckboxClicked(int)));
   connect ( outputFormatMenu, SIGNAL ( currentIndexChanged ( int )), this,
-      SLOT ( updateDoProcessing(int)));
+      SLOT ( advancedFormatChanged(int)));
   connect ( doDemosaicCheckbox, SIGNAL ( stateChanged ( int )), this,
-      SLOT ( selectivelyControlDemosaic( int )));
+      SLOT ( advancedDemosaicClicked( int )));
   connect ( cfaPatternMenu, SIGNAL ( currentIndexChanged ( int )), parent,
       SLOT ( dataChanged()));
   connect ( methodMenu, SIGNAL ( currentIndexChanged ( int )), parent,
@@ -168,6 +170,8 @@ OutputSettings::~OutputSettings()
 void
 OutputSettings::storeSettings ( void )
 {
+  std::cerr << "in storeSettings()\n";
+
   config.targetPixelFormat = outputFormatMenu->itemData(
       outputFormatMenu->currentIndex()).toInt();
   state.mainWindow->updateImagePixelFormat();
@@ -181,78 +185,60 @@ OutputSettings::storeSettings ( void )
       methodMenu->currentIndex()).toInt();
 }
 
-void OutputSettings::switchSimpleAdvanced(int state)
-{
-    const bool switchToSimple = state==0;
-    std::cerr << "in switchSimpleAdvanced " << state << "\n";
 
-    colourButton->setEnabled(switchToSimple);
-    greyButton->setEnabled(switchToSimple);
-    rawButton->setEnabled(switchToSimple);
-    eightBitButton->setEnabled(switchToSimple);
-    sixteenBitButton->setEnabled(switchToSimple);
 
-    outputFormatLabel->setVisible(!switchToSimple);
-    outputFormatMenu->setVisible(!switchToSimple);
-    doDemosaicCheckbox->setVisible(!switchToSimple);
-    doGreyscaleCheckbox->setVisible(!switchToSimple);
-    cfaLabel->setVisible(!switchToSimple);
-    cfaPatternMenu->setVisible(!switchToSimple);
-    methodLabel->setVisible(!switchToSimple);
-    methodMenu->setVisible(!switchToSimple);
 
-    if (switchToSimple) {
-        bool warn = false;
-        std::string warning = "TODO";
 
-        const int current_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
-        const int current_cfa  = cfaPatternMenu->itemData(cfaPatternMenu->currentIndex()).toInt();
-        const int current_method = methodMenu->itemData(methodMenu->currentIndex()).toInt();
 
-        if (OA_ISBAYER(current_format)
-            && OA_CFA_PATTERN(current_format) != OA_CFA_PATTERN(config.imagePixelFormat))
-        {
-            warn = true;
-            warning += " PIX_FMT";
-            int new_format = OA_BYTES_PER_PIXEL(config.imagePixelFormat) == 1
-                             ? OA_TO_BAYER8(OA_CFA_PATTERN(config.imagePixelFormat))
-                             : OA_TO_BAYER16(OA_CFA_PATTERN(config.imagePixelFormat));
-            outputFormatMenu->setCurrentIndex(outputFormatMenu->findData(new_format));
-        }
 
-        if (doDemosaicCheckbox->isChecked()) {
-            const int current_cfa  = cfaPatternMenu->itemData(cfaPatternMenu->currentIndex()).toInt();
-            const int current_method = methodMenu->itemData(methodMenu->currentIndex()).toInt();
 
-            if (current_cfa != OA_DEMOSAIC_AUTO) {
-                warn = true;
-                warning += " CFA";
-                cfaPatternMenu->setCurrentIndex(cfaPatternMenu->findData( OA_DEMOSAIC_AUTO ));
-            }
-            if (current_method != OA_DEMOSAIC_NEAREST_NEIGHBOUR) {
-                warn = true;
-                warning += " METHOD";
-                methodMenu->setCurrentIndex(methodMenu->findData( OA_DEMOSAIC_NEAREST_NEIGHBOUR ));
-            }
 
-        }
 
-        if (warn) {
-            QMessageBox::warning ( this, APPLICATION_NAME, warning.c_str());
-        }
-    }
+void OutputSettings::advancedDemosaicClicked(int doDemosaic) {
+    std::cerr << "in advancedDemosaicClicked " << doDemosaic << "\n";
+
+    cfaPatternMenu->setEnabled( doDemosaic );
+    methodMenu->setEnabled( doDemosaic ); 
+
+    dummyForceDataChanged->setChecked(!dummyForceDataChanged->isChecked());
 }
 
-void OutputSettings::updateDoProcessingSimple(int index)
-{
-    std::cerr << "in updateDoProcessingSimple " << index << "\n";
+void OutputSettings::simpleSettingsClicked(int index) {
+    std::cerr << "in simpleSettingsClicked " << index << "\n";
 
     if (colourButton->isChecked()) {
         if (sixteenBitButton->isChecked()) {
-                QMessageBox::warning ( this, APPLICATION_NAME, "Can't output 16bit colour, reverting to 8bit");
+            if ((OA_ISRGB(config.imagePixelFormat) && OA_BYTES_PER_PIXEL(config.imagePixelFormat) == 3)
+             || (OA_ISBAYER(config.imagePixelFormat) && OA_BYTES_PER_PIXEL(config.imagePixelFormat) == 1))
+            {
+                QMessageBox::warning ( this, APPLICATION_NAME, "Can't output 48bit colour, reverting to 24bit");
                 eightBitButton->setChecked(true);
+            }
         }
     }
+    if (greyButton->isChecked()) {
+        if (sixteenBitButton->isChecked()) {
+            if (OA_ISGREYSCALE(config.imagePixelFormat) && OA_BYTES_PER_PIXEL(config.imagePixelFormat) == 1)
+            {
+                QMessageBox::warning ( this, APPLICATION_NAME, "Can't output 16bit greyscale, reverting to 8bit");
+                eightBitButton->setChecked(true);
+            }
+        }
+    }
+    if (rawButton->isChecked()) {
+        if (sixteenBitButton->isChecked()) {
+            if (OA_BYTES_PER_PIXEL(config.imagePixelFormat) == 1)
+            {
+                QMessageBox::warning ( this, APPLICATION_NAME, "Can't output 16bit raw, reverting to 8bit");
+                eightBitButton->setChecked(true);
+            }
+        }
+    }
+    inferPixelFormatFromSimpleSettings(); // triggers advancedFormatChanged()???
+}
+
+void OutputSettings::inferPixelFormatFromSimpleSettings(void) {
+    std::cerr << "in inferPixelFormatFromSimpleSettings()\n";
 
     const bool colour = colourButton->isChecked();
     const bool grey = greyButton->isChecked();
@@ -263,6 +249,8 @@ void OutputSettings::updateDoProcessingSimple(int index)
     int output_format = 0;
     if (colour && eightBit)
         output_format = OA_PIX_FMT_RGB24;
+    if (colour && !eightBit)
+        output_format = OA_PIX_FMT_RGB48LE;
     if (grey && eightBit)
         output_format = OA_PIX_FMT_GREY8;
     if (grey && !eightBit)
@@ -273,73 +261,173 @@ void OutputSettings::updateDoProcessingSimple(int index)
         output_format = OA_TO_BAYER16(config.imagePixelFormat);
 
     int outputFormatIndex = outputFormatMenu->findData(output_format);
-    std::cerr << "Simple implies output format " << OA_PIX_FMT_STRING(output_format) << "@" << outputFormatIndex;
-    outputFormatMenu->setCurrentIndex(outputFormatIndex);
-    updateDoProcessing(outputFormatIndex);
+    std::cerr << "Simple implies output format " << OA_PIX_FMT_STRING(output_format)
+              << "@" << outputFormatIndex << "\n";
+    outputFormatMenu->setCurrentIndex(outputFormatIndex); // triggers advancedFormatChanged???
 }
 
-void OutputSettings::updateDoProcessing(int index)
-{
-    std::cerr << "in updateDoProcessing " << index << "\n";
+void OutputSettings::advancedFormatChanged(int index) {
+    std::cerr << "in advancedFormatChanged " << index << "\n";
 
     int output_format = outputFormatMenu->itemData(index).toInt();
+    inputFormatValue->setText(QString(OA_PIX_FMT_STRING(config.imagePixelFormat)).append(" -> ").append(OA_PIX_FMT_STRING(output_format)));
 
-    const bool canDoDemosaic = OA_ISBAYER(config.imagePixelFormat) && !OA_ISBAYER(output_format);
-    const bool mustDoDemosaic = canDoDemosaic && OA_ISRGB(output_format);
-    const bool doDemosaic = mustDoDemosaic ? true : (canDoDemosaic ? config.demosaic.demosaicOutput : false);
-  
-    const bool mustDoGreyscale = OA_ISGREYSCALE(output_format) && !OA_ISGREYSCALE(config.imagePixelFormat);
+    if (!OA_SHOULD_CONVERT_PIX_FMT(config.imagePixelFormat, output_format))
+        advancedBox->setText("Advanced (warning: non standard)");
+    else
+        advancedBox->setText("Advanced");
 
-    cfaPatternMenu->setEnabled(doDemosaic);
-    
-    cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData(
-        (!OA_ISBAYER(config.imagePixelFormat) || OA_ISBAYER(output_format))
-        ? OA_DEMOSAIC_AUTO
-        : config.demosaic.cfaPattern ));
 
-    methodMenu->setEnabled(doDemosaic);
-    methodMenu->setCurrentIndex ( methodMenu->findData( config.demosaic.method ) );
+    std::cerr << "constructing conversion from changed format\n";
+    const Conversion convert(config.imagePixelFormat, output_format, config.demosaic.cfaPattern, config.demosaic.method);
 
-    doDemosaicCheckbox->setChecked(doDemosaic);
-    doDemosaicCheckbox->setEnabled(canDoDemosaic && !mustDoDemosaic);
+    cfaPatternMenu->setEnabled(convert.doDemosaic());
+    cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData(convert.cfaFormat()) );
+//    cfaPatternMenu->setCurrentIndex ( cfaPatternMenu->findData(
+//        (!OA_ISBAYER(config.imagePixelFormat) || OA_ISBAYER(output_format))
+//        ? OA_DEMOSAIC_AUTO
+//        : config.demosaic.cfaPattern ));
 
-    doGreyscaleCheckbox->setChecked(mustDoGreyscale);
+    methodMenu->setEnabled(convert.doDemosaic());
+    methodMenu->setCurrentIndex ( methodMenu->findData( convert.demosaicMethod() ) );//config.demosaic.method ) );
+
+    doDemosaicCheckbox->setChecked(convert.doDemosaic());
+    doDemosaicCheckbox->setEnabled(convert.canDoDemosaic() && !convert.mustDoDemosaic());
+
+    doGreyscaleCheckbox->setChecked(convert.doGreyscale());
     doGreyscaleCheckbox->setEnabled(false);
 
+    inferSimpleSettingsFromAdvanced();
 
-
-    colourButton->setEnabled(canDoDemosaic || OA_ISRGB(config.imagePixelFormat));
-    colourButton->setChecked(OA_ISRGB(output_format));
-
-    greyButton->setChecked(OA_ISGREYSCALE(output_format));
-    greyButton->setEnabled(true);
-
-    rawButton->setEnabled(canDoDemosaic);
-    rawButton->setChecked(OA_ISBAYER(output_format));
-
-    eightBitButton->setChecked(OA_BYTES_PER_PIXEL(output_format) == 1 ||
-                               OA_BYTES_PER_PIXEL(output_format) == 3);
-    sixteenBitButton->setChecked(OA_BYTES_PER_PIXEL(output_format) == 2 ||
-                               OA_BYTES_PER_PIXEL(output_format) == 6);
-
-    switchSimpleAdvanced(advancedBox->isChecked());
-
-
-
-    // first time updateDoProcessing is called is to populate
+    // first time advancedFormatChanged is called is to populate
     // after that, it gets called on change of output format
     // first time, dummyForceDataChanged hasn't been connected
     // so we don't call dataChanged, so next line is a nop.
     dummyForceDataChanged->setChecked(!dummyForceDataChanged->isChecked());
 }
 
-void OutputSettings::selectivelyControlDemosaic( int doDemosaic )
-{
-    std::cerr << "in selectivelyControlDemosaic " << doDemosaic << "\n";
-    config.demosaic.demosaicOutput = doDemosaic;
+void OutputSettings::advancedCheckboxClicked(int state) {
+    std::cerr << "in advancedCheckboxClicked " << state << "\n";
 
-    cfaPatternMenu->setEnabled( doDemosaic );
-    methodMenu->setEnabled( doDemosaic ); 
+    const bool switchToSimple = state==0;
 
-    dummyForceDataChanged->setChecked(!dummyForceDataChanged->isChecked());
+    enableOrDisableSimpleSettings(switchToSimple);
+    showOrHideAdvancedSettings(!switchToSimple);
+
+    if (switchToSimple)
+        simplifyAdvancedSettings();
+}
+
+void OutputSettings::enableOrDisableSimpleSettings(int simple) {
+    std::cerr << "in enableOrDisableSimpleSettings()\n";
+    colourButton->setEnabled(simple);
+    greyButton->setEnabled(simple);
+    rawButton->setEnabled(simple);
+    eightBitButton->setEnabled(simple);
+    sixteenBitButton->setEnabled(simple);
+}
+
+void OutputSettings::showOrHideAdvancedSettings(int advanced) {
+    std::cerr << "in showOrHideAdvancedSettings()\n";
+    outputFormatLabel->setVisible(advanced);
+    outputFormatMenu->setVisible(advanced);
+    doDemosaicCheckbox->setVisible(advanced);
+    doGreyscaleCheckbox->setVisible(advanced);
+    cfaLabel->setVisible(advanced);
+    cfaPatternMenu->setVisible(advanced);
+    methodLabel->setVisible(advanced);
+    methodMenu->setVisible(advanced);
+
+}
+
+void OutputSettings::simplifyAdvancedSettings() {
+    std::cerr << "in simplifyAdvancedSettings()\n";
+    bool warn = false;
+    std::string warning = "The following settings have been simplified:\n";
+
+    const int current_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
+    const int current_cfa  = cfaPatternMenu->itemData(cfaPatternMenu->currentIndex()).toInt();
+    const int current_method = methodMenu->itemData(methodMenu->currentIndex()).toInt();
+
+    std::cerr << "constructing advanced\n";
+    const Conversion advanced(config.imagePixelFormat, current_format, current_cfa, current_method);
+    std::cerr << "constructing simple from advanced\n";
+    const Conversion simple = advanced.toSimple();
+    const int new_format = simple.outputFormat();
+    const int new_cfa = simple.cfaFormat();
+    const int new_method = simple.demosaicMethod();
+
+    if (new_format != current_format)
+    {
+        warn = true;
+
+        warning += "\tPixel format changed from ";
+        warning += OA_PIX_FMT_STRING(current_format);
+        warning += " to ";
+        warning += OA_PIX_FMT_STRING(new_format);
+        warning += "\n"; // FIXME one line
+
+        outputFormatMenu->setCurrentIndex(outputFormatMenu->findData(new_format));
+    }
+
+    if (simple.doDemosaic() && !doDemosaicCheckbox->isChecked())
+    {
+        warn = true;
+        warning += "\tDemosaic enabled (greyscale output)\n";
+        doDemosaicCheckbox->setChecked(true);
+    }
+
+    if (doDemosaicCheckbox->isChecked()) {
+        if (new_cfa != current_cfa) {
+            warn = true;
+
+            warning += "\tCFA pattern changed from ";
+            warning += "TODO"; // FIXME "RGGB" etc
+            warning += " to AUTO\n"; // FIXME one line
+
+            cfaPatternMenu->setCurrentIndex(cfaPatternMenu->findData( new_cfa ));
+        }
+        if (new_method != current_method) {
+            warn = true;
+
+            warning += "\tDemosaic method changed from \"";
+            warning += oademosaicMethodName(current_method);
+            warning += "\" to \"";
+            warning += oademosaicMethodName(new_method);
+            warning += "\"\n"; // FIXME one line
+
+            methodMenu->setCurrentIndex(methodMenu->findData( new_method ));
+        }
+
+    }
+
+    if (warn) {
+        QMessageBox::warning ( this, APPLICATION_NAME, warning.c_str());
+    }
+
+    inferSimpleSettingsFromAdvanced();
+}
+
+void OutputSettings::inferSimpleSettingsFromAdvanced() {
+    const bool simpleEnabled = !advancedBox->isChecked();
+
+    std::cerr << "in inferSimpleSettingsFromAdvanced()\n";
+    int output_format = outputFormatMenu->itemData(outputFormatMenu->currentIndex()).toInt();
+
+    std::cerr << "construction conversion from current\n";
+    const Conversion convert(config.imagePixelFormat, output_format);
+
+    colourButton->setEnabled(simpleEnabled && convert.canDoSimpleRGB());
+    colourButton->setChecked(convert.doSimpleRGB());
+
+    greyButton->setEnabled(simpleEnabled && convert.canDoSimpleGrey());
+    greyButton->setChecked(convert.doSimpleGrey());
+
+    rawButton->setEnabled(simpleEnabled && convert.canDoSimpleRaw());
+    rawButton->setChecked(convert.doSimpleRaw());
+
+    eightBitButton->setEnabled(simpleEnabled && convert.canDoSimple8Bit());
+    eightBitButton->setChecked(convert.doSimple8Bit());
+    sixteenBitButton->setEnabled(simpleEnabled && convert.canDoSimple16Bit());
+    sixteenBitButton->setChecked(convert.doSimple16Bit());
 }

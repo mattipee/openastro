@@ -266,15 +266,26 @@ void MainWindow::updateImagePixelFormat()
       const int fmt = state.camera->videoFramePixelFormat(0);
 
 
-      std::cerr << "Input format: " << OA_PIX_FMT_STRING(fmt) << "\n";
-      std::cerr << "Output formats: ";
-
-      int* allowed_output_formats = OA_ALLOWED_OUTPUT_PIX_FMT(fmt);
-      for (int i=OA_PIX_FMT_NONE; i<OA_PIX_FMT_MAX; ++i)
       {
-          if (allowed_output_formats[i]) std::cerr << OA_PIX_FMT_STRING(i) << " ";
+        std::cerr << "Input format: " << OA_PIX_FMT_STRING(fmt) << "\n";
+        
+        std::cerr << "Possible output formats: ";
+        for (int i=OA_PIX_FMT_NONE; i<OA_PIX_FMT_MAX; ++i)
+        {
+            if (OA_CAN_CONVERT_PIX_FMT(fmt, i))
+                std::cerr << OA_PIX_FMT_STRING(i) << " ";
+        }
+        std::cerr << "\n";
+
+        std::cerr << "Recommended output formats: ";
+        for (int i=OA_PIX_FMT_NONE; i<OA_PIX_FMT_MAX; ++i)
+        {
+            if (OA_SHOULD_CONVERT_PIX_FMT(fmt, i))
+                std::cerr << OA_PIX_FMT_STRING(i) << " ";
+        }
+        std::cerr << "\n";
       }
-      std::cerr << "\n";
+
 
 
       // Output settings window needs this
