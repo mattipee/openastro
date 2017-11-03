@@ -209,6 +209,15 @@ static double OA_BYTES_PER_PIXEL(int x) {
     }
 }
 
+static int OA_IS_MULTIBYTE_PER_PIXEL(int x)
+{
+    if (OA_BYTES_PER_PIXEL(x) == 2 ||
+        OA_BYTES_PER_PIXEL(x) == 6 ||
+        OA_BYTES_PER_PIXEL(x) == 1.25)
+      return 1;
+    return 0;
+}
+
 static int OA_IS_LUM_CHROM(int x) {
     return ( x >= OA_PIX_FMT_YUV444P && x <= OA_PIX_FMT_YUV410 );
 }
@@ -323,11 +332,14 @@ static int OA_TO_BAYER16(int x) {
     }
 }
 
-enum { OA_CAN_CONVERT = 0,
-       OA_SHOULD_CONVERT = 1 };
-
 static int OA_SHOULD_CONVERT_PIX_FMT(int I, int O)
 {
+    // OUT         IN
+    //       RAW  GREY RGB
+    // RAW    1    0    1
+    // GREY   0    1    0
+    // RGB    0    1    1
+
     if (!O || !I)
         return 0; // error
 
